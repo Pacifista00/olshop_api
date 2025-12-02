@@ -5,22 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 
-class MidtransTransaction extends Model
+class Otp extends Model
 {
     use HasFactory, HasUuids;
 
     public $incrementing = false;
     protected $keyType = 'string';
     protected $fillable = [
-        'order_id',
-        'midtrans_transaction_id',
-        'status_code',
-        'transaction_status',
-        'payment_type',
-        'va_number',
-        'json_data',
+        'user_id',
+        'otp_code',
+        'expired_at',
+        'is_used',
+        'type',
     ];
-
 }

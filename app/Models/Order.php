@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,24 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuids;
+
+    public $incrementing = false;
+    protected $keyType = 'string';
+    protected $fillable = [
+        'user_id',
+        'shipping_address_id',
+        'order_number',
+        'total_amount',
+        'shipping_cost',
+        'midtrans_transaction_id',
+        'midtrans_snap_token',
+        'status',
+        'payment_status',
+        'payment_method',
+        'transaction_time',
+    ];
+
 
     /**
      * Pesanan ini dimiliki oleh satu user (user).
