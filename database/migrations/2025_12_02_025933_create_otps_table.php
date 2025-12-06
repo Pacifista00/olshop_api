@@ -17,6 +17,8 @@ return new class extends Migration {
             $table->timestamp('expired_at');
             $table->boolean('is_used')->default(false);
             $table->string('type')->default('register');
+            $table->string('reset_token')->nullable();
+            $table->timestamp('reset_token_expired')->nullable();
             $table->timestamps();
         });
     }

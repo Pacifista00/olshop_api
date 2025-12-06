@@ -18,5 +18,7 @@ class Otp extends Model
         'expired_at',
         'is_used',
         'type',
+        'reset_token',
+        'reset_token_expired'
     ];
 }
