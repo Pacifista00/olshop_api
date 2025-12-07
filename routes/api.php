@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AddressController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
@@ -31,6 +32,11 @@ Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    Route::get('/addresses', [AddressController::class, 'index']);
+    Route::post('/addresses/store', [AddressController::class, 'store']);
+    Route::put('/addresses/update/{address}', [AddressController::class, 'update']);
+    Route::delete('/addresses/delete/{address}', [AddressController::class, 'destroy']);
 });
 
 

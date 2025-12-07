@@ -15,7 +15,6 @@ class Address extends Model
 
     public $incrementing = false;
     protected $keyType = 'string';
-
     protected $fillable = [
         'user_id',
         'recipient_name',
@@ -26,9 +25,11 @@ class Address extends Model
         'postal_code',
         'is_default',
     ];
+    protected $casts = [
+        'is_default' => 'boolean',
+    ];
 
-
-    public function user(): BelongsTo
+    public function user()
     {
         return $this->belongsTo(User::class);
     }
