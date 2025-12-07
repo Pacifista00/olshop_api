@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AddressController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
@@ -37,6 +38,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/addresses/store', [AddressController::class, 'store']);
     Route::put('/addresses/update/{address}', [AddressController::class, 'update']);
     Route::delete('/addresses/delete/{address}', [AddressController::class, 'destroy']);
+
+    Route::get('/category', [CategoryController::class, 'index']);
+    Route::post('/category/store', [CategoryController::class, 'store']);
+    Route::put('/category/update/{category}', [CategoryController::class, 'update']);
+    Route::delete('/category/delete/{category}', [CategoryController::class, 'destroy']);
 });
 
 
