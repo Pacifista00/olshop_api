@@ -4,6 +4,7 @@ use App\Http\Controllers\AddressController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ProductController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -43,6 +44,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/category/store', [CategoryController::class, 'store']);
     Route::put('/category/update/{category}', [CategoryController::class, 'update']);
     Route::delete('/category/delete/{category}', [CategoryController::class, 'destroy']);
+
+    Route::get('/product', [ProductController::class, 'index']);
+    Route::post('/product/store', [ProductController::class, 'store']);
+    Route::put('/product/update/{product}', [ProductController::class, 'update']);
+    Route::delete('/product/delete/{product}', [ProductController::class, 'destroy']);
 });
 
 

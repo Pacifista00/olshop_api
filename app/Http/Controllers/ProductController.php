@@ -1,0 +1,181 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Resources\ProductResource;
+use App\Models\Product;
+use App\Models\Category;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
+class ProductController extends Controller
+{
+    // GET /products
+    public function index()
+    {
+        $products = Product::with('category')->get();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'List of products retrieved successfully.',
+            'data' => ProductResource::collection($products)
+        ], 200);
+    }
+
+    // POST /products
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'category_id' => 'required|exists:categories,id',
+            'name' => 'required|string|max:255|unique:products,name',
+            'description' => 'nullable|string',
+            'price' => 'required|numeric|min:0',
+            'stock' => 'required|integer|min:0',
+            'image' => 'nullable|image|max:2048',
+            'is_active' => 'boolean'
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+
+            // Handle image upload
+            if ($request->hasFile('image')) {
+                $validated['image'] = $request->file('image')->store('products', 'public');
+            }
+
+            // Create product
+            $product = Product::create([
+                'category_id' => $validated['category_id'],
+                'name' => $validated['name'],
+                'slug' => Str::slug($validated['name']),
+                'description' => $validated['description'] ?? null,
+                'price' => $validated['price'],
+                'stock' => $validated['stock'],
+                'image' => $validated['image'] ?? null,
+                'is_active' => $validated['is_active'] ?? true,
+            ]);
+
+            if (!$product) {
+                throw new \Exception("Gagal membuat produk.");
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Product created successfully.',
+                'data' => new ProductResource($product)
+            ], 201);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal membuat produk.',
+                // 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // PUT /products/{product}
+    public function update(Request $request, Product $product)
+    {
+        $validated = $request->validate([
+            'category_id' => 'sometimes|exists:categories,id',
+            'name' => 'sometimes|string|max:255|unique:products,name,' . $product->id,
+            'description' => 'sometimes|string|nullable',
+            'price' => 'sometimes|numeric|min:0',
+            'stock' => 'sometimes|integer|min:0',
+            'image' => 'sometimes|image|max:2048',
+            'is_active' => 'boolean'
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+
+            // Replace image if uploaded
+            if ($request->hasFile('image')) {
+                if ($product->image && file_exists(storage_path('app/public/' . $product->image))) {
+                    unlink(storage_path('app/public/' . $product->image));
+                }
+
+                $validated['image'] = $request->file('image')->store('products', 'public');
+            }
+
+            // Update product
+            $updated = $product->update([
+                'category_id' => $validated['category_id'] ?? $product->category_id,
+                'name' => $validated['name'] ?? $product->name,
+                'slug' => isset($validated['name']) ? Str::slug($validated['name']) : $product->slug,
+                'description' => $validated['description'] ?? $product->description,
+                'price' => $validated['price'] ?? $product->price,
+                'stock' => $validated['stock'] ?? $product->stock,
+                'image' => $validated['image'] ?? $product->image,
+                'is_active' => $validated['is_active'] ?? $product->is_active,
+            ]);
+
+            if (!$updated) {
+                throw new \Exception("Gagal mengupdate produk.");
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Product updated successfully.',
+                'data' => new ProductResource($product)
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengupdate produk.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // DELETE /products/{product}
+    public function destroy(Product $product)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            // Delete image file
+            if ($product->image && file_exists(storage_path('app/public/' . $product->image))) {
+                unlink(storage_path('app/public/' . $product->image));
+            }
+
+            if (!$product->delete()) {
+                throw new \Exception("Gagal menghapus produk.");
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Product deleted successfully.',
+                'data' => null
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal menghapus produk.',
+                // 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+}
