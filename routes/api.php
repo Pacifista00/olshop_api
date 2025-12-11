@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AddressController;
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\AuthController;
@@ -49,6 +50,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/product/store', [ProductController::class, 'store']);
     Route::put('/product/update/{product}', [ProductController::class, 'update']);
     Route::delete('/product/delete/{product}', [ProductController::class, 'destroy']);
+
+    Route::get('/cart', [CartController::class, 'index']);
+    Route::post('/cart/store', [CartController::class, 'store']);
+    Route::put('/cart/update/{cartItem}', [CartController::class, 'update']);
+    Route::delete('/cart/delete/{cartItem}', [CartController::class, 'destroy']);
 });
 
 

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Cart extends Model
 {
@@ -17,6 +18,7 @@ class Cart extends Model
     protected $keyType = 'string';
     protected $fillable = [
         'user_id',
+
     ];
 
     /**
@@ -34,5 +36,10 @@ class Cart extends Model
     {
         return $this->belongsToMany(Product::class, 'cart_items')
             ->withPivot('quantity');
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(CartItem::class, 'cart_id');
     }
 }
