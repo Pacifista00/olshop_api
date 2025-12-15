@@ -5,6 +5,8 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\MidtransController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -55,6 +57,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/cart/store', [CartController::class, 'store']);
     Route::put('/cart/update/{cartItem}', [CartController::class, 'update']);
     Route::delete('/cart/delete/{cartItem}', [CartController::class, 'destroy']);
+
+    Route::post('/checkout', [OrderController::class, 'checkout']);
+
+    Route::post('/midtrans/webhook', [MidtransController::class, 'handle']);
+
 });
 
 
