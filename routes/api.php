@@ -36,6 +36,7 @@ Route::post('/forgot-password/verify-otp', [ForgotPasswordController::class, 've
 Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+    Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::get('/addresses', [AddressController::class, 'index']);
