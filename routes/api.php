@@ -35,6 +35,12 @@ Route::post('/forgot-password', [ForgotPasswordController::class, 'sendOtp']);
 Route::post('/forgot-password/verify-otp', [ForgotPasswordController::class, 'verifyOtp']);
 Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword']);
 
+Route::get('/category', [CategoryController::class, 'index']);
+Route::get('/products', [ProductController::class, 'index']);
+Route::get('/product/{id}', [ProductController::class, 'getProduct']);
+Route::get('/products/latest', [ProductController::class, 'latest']);
+Route::get('/products/best-seller', [ProductController::class, 'bestSeller']);
+
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -44,12 +50,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::put('/addresses/update/{address}', [AddressController::class, 'update']);
     Route::delete('/addresses/delete/{address}', [AddressController::class, 'destroy']);
 
-    Route::get('/category', [CategoryController::class, 'index']);
     Route::post('/category/store', [CategoryController::class, 'store']);
     Route::put('/category/update/{category}', [CategoryController::class, 'update']);
     Route::delete('/category/delete/{category}', [CategoryController::class, 'destroy']);
 
-    Route::get('/product', [ProductController::class, 'index']);
     Route::post('/product/store', [ProductController::class, 'store']);
     Route::put('/product/update/{product}', [ProductController::class, 'update']);
     Route::delete('/product/delete/{product}', [ProductController::class, 'destroy']);

@@ -14,7 +14,46 @@ class ProductController extends Controller
     // GET /products
     public function index()
     {
-        $products = Product::with('category')->get();
+        $products = Product::with('category')
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'List of products retrieved successfully.',
+            'data' => ProductResource::collection($products)
+        ], 200);
+    }
+    public function getProduct($id)
+    {
+        $product = Product::with('category')
+            ->findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'product retrieved successfully.',
+            'data' => new ProductResource($product)
+        ], 200);
+    }
+    public function latest()
+    {
+        $products = Product::with('category')
+            ->latest()
+            ->limit(8)
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'List of products retrieved successfully.',
+            'data' => ProductResource::collection($products)
+        ], 200);
+    }
+    public function bestSeller()
+    {
+        $products = Product::with('category')
+            ->latest()
+            ->limit(12)
+            ->get();
 
         return response()->json([
             'status' => 'success',
