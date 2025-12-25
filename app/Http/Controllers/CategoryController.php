@@ -6,6 +6,7 @@ use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class CategoryController extends Controller
@@ -27,15 +28,25 @@ class CategoryController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:categories,name',
+            'icon' => 'nullable|image|mimes:png,jpg,jpeg,svg,webp|max:2048',
         ]);
 
         DB::beginTransaction();
 
         try {
+            $iconPath = null;
+
+            if ($request->hasFile('icon')) {
+                $iconPath = $request->file('icon')->store(
+                    'category_icon',
+                    'public'
+                );
+            }
 
             $category = Category::create([
                 'name' => $validated['name'],
                 'slug' => Str::slug($validated['name']),
+                'icon' => $iconPath,
             ]);
 
             if (!$category) {
@@ -54,9 +65,15 @@ class CategoryController extends Controller
 
             DB::rollBack();
 
+            if ($iconPath && Storage::disk('public')->exists($iconPath)) {
+                Storage::disk('public')->delete($iconPath);
+            }
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Gagal membuat kategori.',
+                'error' => $e->getMessage(),
+
                 // 'error' => $e->getMessage(),
             ], 500);
         }
@@ -67,15 +84,33 @@ class CategoryController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
+            'icon' => 'nullable|image|mimes:png,jpg,jpeg,svg,webp|max:2048',
         ]);
 
         DB::beginTransaction();
 
         try {
+            $iconPath = $category->icon; // simpan icon lama
+
+            // jika ada icon baru
+            if ($request->hasFile('icon')) {
+
+                // upload icon baru
+                $iconPath = $request->file('icon')->store(
+                    'category_icon',
+                    'public'
+                );
+
+                // hapus icon lama
+                if ($category->icon && Storage::disk('public')->exists($category->icon)) {
+                    Storage::disk('public')->delete($category->icon);
+                }
+            }
 
             $updated = $category->update([
                 'name' => $validated['name'],
                 'slug' => Str::slug($validated['name']),
+                'icon' => $iconPath,
             ]);
 
             if (!$updated) {
@@ -94,6 +129,14 @@ class CategoryController extends Controller
 
             DB::rollBack();
 
+            if (
+                isset($iconPath) &&
+                $iconPath !== $category->icon &&
+                Storage::disk('public')->exists($iconPath)
+            ) {
+                Storage::disk('public')->delete($iconPath);
+            }
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Gagal mengupdate kategori.',
@@ -108,6 +151,16 @@ class CategoryController extends Controller
         DB::beginTransaction();
 
         try {
+            $iconPath = $category->icon; // simpan path icon
+
+            if (!$category->delete()) {
+                throw new \Exception("Gagal menghapus kategori.");
+            }
+
+            // hapus icon dari storage setelah data berhasil dihapus
+            if ($iconPath && Storage::disk('public')->exists($iconPath)) {
+                Storage::disk('public')->delete($iconPath);
+            }
 
             if (!$category->delete()) {
                 throw new \Exception("Gagal menghapus kategori.");
