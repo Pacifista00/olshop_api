@@ -12,18 +12,54 @@ use Illuminate\Support\Str;
 class ProductController extends Controller
 {
     // GET /products
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::with('category')
-            ->latest()
-            ->get();
+        $query = Product::with('category');
+
+        // FILTER KATEGORI
+        if ($request->filled('category')) {
+            $query->whereHas('category', function ($q) use ($request) {
+                $q->where('slug', $request->category);
+            });
+        }
+
+        // SORTING
+        if ($request->filled('sort')) {
+            switch ($request->sort) {
+                case 'price_low':
+                    $query->orderBy('price', 'asc');
+                    break;
+
+                case 'price_high':
+                    $query->orderBy('price', 'desc');
+                    break;
+
+                case 'name_asc':
+                    $query->orderBy('name', 'asc');
+                    break;
+
+                default:
+                    $query->latest();
+            }
+        } else {
+            $query->latest();
+        }
+
+        $products = $query->paginate(12);
 
         return response()->json([
             'status' => 'success',
             'message' => 'List of products retrieved successfully.',
-            'data' => ProductResource::collection($products)
+            'data' => ProductResource::collection($products),
+            'meta' => [
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
+                'per_page' => $products->perPage(),
+                'total' => $products->total(),
+            ],
         ], 200);
     }
+
     public function getProduct($id)
     {
         $product = Product::with('category')
