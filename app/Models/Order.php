@@ -19,8 +19,11 @@ class Order extends Model
         'user_id',
         'shipping_address_id',
         'order_number',
+        'subtotal_amount',
         'total_amount',
         'shipping_cost',
+        'voucher_id',
+        'voucher_discount',
         'midtrans_transaction_id',
         'midtrans_snap_token',
         'status',
@@ -28,6 +31,13 @@ class Order extends Model
         'payment_method',
         'transaction_time',
     ];
+    protected $casts = [
+        'total_amount' => 'decimal:2',
+        'shipping_cost' => 'decimal:2',
+        'voucher_discount' => 'decimal:2',
+        'transaction_time' => 'datetime',
+    ];
+
 
 
     /**
@@ -64,4 +74,9 @@ class Order extends Model
     {
         return $this->hasMany(MidtransTransaction::class);
     }
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class);
+    }
+
 }

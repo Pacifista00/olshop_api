@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AddressController;
+use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ForgotPasswordController;
@@ -63,10 +64,17 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::put('/cart/update/{cartItem}', [CartController::class, 'update']);
     Route::delete('/cart/delete/{cartItem}', [CartController::class, 'destroy']);
 
+    Route::post('/voucher/store', [VoucherController::class, 'store']);
+    Route::put('/voucher/update/{voucher}', [VoucherController::class, 'update']);
+    Route::delete('/voucher/delete/{voucher}', [VoucherController::class, 'destroy']);
+    Route::get('/voucher/show/{voucher}', [VoucherController::class, 'show']);
+    Route::post('/voucher/preview', [VoucherController::class, 'preview']);
+
     Route::post('/checkout', [OrderController::class, 'checkout']);
 
     Route::post('/midtrans/webhook', [MidtransController::class, 'handle']);
-
 });
 
 
+
+Route::get('/vouchers', [VoucherController::class, 'index']);

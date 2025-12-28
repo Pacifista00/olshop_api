@@ -15,7 +15,8 @@ class OrderController extends Controller
         try {
             $order = OrderService::checkoutFromCart(
                 $request->shipping_address_id,
-                $user
+                $user,
+                $request->voucher_code
             );
 
             $snapToken = MidtransService::createSnapToken([

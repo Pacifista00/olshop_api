@@ -5,26 +5,29 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 
-class MidtransTransaction extends Model
+class VoucherUsage extends Model
 {
     use HasFactory, HasUuids;
 
     public $incrementing = false;
     protected $keyType = 'string';
+
     protected $fillable = [
+        'voucher_id',
+        'user_id',
         'order_id',
-        'midtrans_transaction_id',
-        'status_code',
-        'transaction_status',
-        'payment_type',
-        'va_number',
-        'json_data',
     ];
-    protected $casts = [
-        'json_data' => 'array',
-    ];
+
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function order()
     {
