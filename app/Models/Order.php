@@ -30,12 +30,16 @@ class Order extends Model
         'payment_status',
         'payment_method',
         'transaction_time',
+        'courier',
+        'courier_service',
+        'shipping_etd',
     ];
     protected $casts = [
         'total_amount' => 'decimal:2',
         'shipping_cost' => 'decimal:2',
         'voucher_discount' => 'decimal:2',
         'transaction_time' => 'datetime',
+        'midtrans_response' => 'array',
     ];
 
 
@@ -77,6 +81,10 @@ class Order extends Model
     public function voucher()
     {
         return $this->belongsTo(Voucher::class);
+    }
+    public function items()
+    {
+        return $this->hasMany(OrderItem::class);
     }
 
 }

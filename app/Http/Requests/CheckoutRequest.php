@@ -23,7 +23,10 @@ class CheckoutRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'shipping_address_id' => ['required', 'uuid', 'exists:addresses,id'],
+            'courier_code' => ['required', 'string'],
+            'courier_service_code' => ['required', 'string'],
+            'shipping_price' => ['required', 'integer', 'min:0'],
+            'voucher_code' => ['nullable', 'string'],
         ];
     }
 

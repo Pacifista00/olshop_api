@@ -24,6 +24,7 @@ class Address extends Model
         'province',
         'postal_code',
         'is_default',
+        'biteship_location_id',
     ];
     protected $casts = [
         'is_default' => 'boolean',

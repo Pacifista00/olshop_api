@@ -23,6 +23,7 @@ class AddressResource extends JsonResource
             'province' => $this->province,
             'postal_code' => $this->postal_code,
             'is_default' => $this->is_default,
+            'biteship_location_id' => $this->biteship_location_id,
             'created_at' => $this->created_at->toDateTimeString(),
         ];
     }

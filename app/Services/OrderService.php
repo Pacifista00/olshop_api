@@ -10,15 +10,18 @@ use App\Models\Product;
 use App\Models\Voucher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Services\BiteshipService;
 
 class OrderService
 {
     public static function checkoutFromCart(
-        string $addressId,
         $user,
+        string $courierCode,
+        string $courierServiceCode,
+        int $shippingPrice,
         ?string $voucherCode = null
     ): Order {
-        return DB::transaction(function () use ($addressId, $user, $voucherCode) {
+        return DB::transaction(function () use ($user, $courierCode, $courierServiceCode, $shippingPrice, $voucherCode) {
 
             // 1️⃣ Cart
             $cart = Cart::where('user_id', $user->id)
@@ -30,9 +33,14 @@ class OrderService
             }
 
             // 2️⃣ Address
-            $address = Address::where('id', $addressId)
-                ->where('user_id', $user->id)
-                ->firstOrFail();
+            $address = Address::where('user_id', $user->id)
+                ->where('is_default', true)
+                ->first();
+
+            if (!$address) {
+                throw new \Exception('Alamat default belum diset');
+            }
+
 
             $subtotal = 0;
             $products = [];
@@ -97,7 +105,63 @@ class OrderService
             }
 
             // 5️⃣ Ongkir
-            $shippingCost = 50000;
+            $biteshipItems = [];
+
+            foreach ($cart->items as $cartItem) {
+                $product = $products[$cartItem->product_id];
+
+                $biteshipItems[] = [
+                    'name' => $product->name,
+                    'value' => (int) $product->price,
+                    'quantity' => $cartItem->quantity,
+                    'weight' => max(1, (int) $product->weight),
+                ];
+            }
+
+            $rates = BiteshipService::getRates([
+                'origin_area_id' => config('services.biteship.origin'),
+                'destination_area_id' => $address->biteship_location_id,
+                'couriers' => 'jne,jnt,sicepat', // 🔥 SAMA DENGAN PREVIEW
+                'items' => $biteshipItems,
+            ]);
+
+            $pricing = collect($rates['pricing'] ?? []);
+
+            if ($pricing->isEmpty()) {
+                throw new \Exception('Tidak ada pricing dari Biteship');
+            }
+
+            $byCourier = $pricing->where('courier_code', $courierCode);
+
+            if ($byCourier->isEmpty()) {
+                throw new \Exception("Kurir {$courierCode} tidak tersedia");
+            }
+
+            $byService = $byCourier->first(
+                fn($item) =>
+                strtolower($item['courier_service_code']) === strtolower($courierServiceCode)
+            );
+
+            if (!$byService) {
+                throw new \Exception(
+                    "Service {$courierServiceCode} tidak tersedia untuk kurir {$courierCode}"
+                );
+            }
+
+            if ((int) $byService['price'] !== (int) $shippingPrice) {
+                throw new \Exception(
+                    "Harga ongkir berubah. Server: {$byService['price']}, Client: {$shippingPrice}"
+                );
+            }
+
+            $service = $byService;
+
+            // 🔒 VALIDASI HARGA
+            if ((int) $service['price'] !== (int) $shippingPrice) {
+                throw new \Exception('Harga ongkir berubah, silakan pilih ulang kurir');
+            }
+
+            $shippingCost = (int) $service['price'];
 
             // 6️⃣ Total FINAL
             $total = max(
@@ -118,9 +182,13 @@ class OrderService
                 'shipping_cost' => $shippingCost,
                 'total_amount' => $total,
 
+                'courier' => $courierCode,
+                'courier_service' => strtoupper($courierServiceCode),
+
                 'payment_status' => 'pending',
                 'status' => 'pending',
             ]);
+
 
             // 8️⃣ Order items + kurangi stok
             foreach ($cart->items as $cartItem) {
@@ -142,8 +210,6 @@ class OrderService
                 $voucher->increment('usage_count');
             }
 
-            // 🔟 Clear cart
-            $cart->items()->delete();
 
             return $order;
         });

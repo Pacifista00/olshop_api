@@ -25,6 +25,10 @@ class Product extends Model
         'stock',
         'image',
         'is_active',
+        'weight',
+        'length',
+        'width',
+        'height',
     ];
 
 

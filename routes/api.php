@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AddressController;
+use App\Http\Controllers\BiteshipController;
 use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
@@ -72,9 +73,14 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::post('/checkout', [OrderController::class, 'checkout']);
 
-    Route::post('/midtrans/webhook', [MidtransController::class, 'handle']);
+    Route::get('/preview-shipping', [BiteshipController::class, 'previewShipping']);
+
+    Route::get('/orders/by-number/{orderNumber}', [OrderController::class, 'showByNumber']);
+
+    Route::get('/orders/{id}', [OrderController::class, 'show']);
+
 });
 
 
-
+Route::post('/midtrans/callback', [MidtransController::class, 'handle']);
 Route::get('/vouchers', [VoucherController::class, 'index']);

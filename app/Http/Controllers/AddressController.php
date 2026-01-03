@@ -6,6 +6,7 @@ use App\Http\Resources\AddressResource;
 use App\Models\Address;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\BiteshipService;
 
 class AddressController extends Controller
 {
@@ -21,7 +22,7 @@ class AddressController extends Controller
     }
     public function store(Request $request)
     {
-        // 1. Validasi input
+        // 1️⃣ Validasi input
         $validated = $request->validate([
             'recipient_name' => 'required|string|max:255',
             'phone' => 'required|string|max:15',
@@ -35,27 +36,39 @@ class AddressController extends Controller
         DB::beginTransaction();
 
         try {
-            // 2. Tentukan user_id
-            $validated['user_id'] = $request->user()->id;
+            // 2️⃣ Resolve location ke BITESHIP (SEKALI SAJA)
+            $location = BiteshipService::findLocation(
+                $validated['city'],
+                $validated['province']
+            );
+            dd([
+                'city' => $validated['city'],
+                'province' => $validated['province'],
+                'response' => $res ?? null
+            ]);
 
-            // 3. Jika alamat baru dijadikan default → reset alamat lain
+            if (!$location) {
+                throw new \Exception('Alamat tidak ditemukan di sistem pengiriman');
+            }
+
+            // 3️⃣ Tambahkan field sistem
+            $validated['user_id'] = $request->user()->id;
+            $validated['biteship_location_id'] = $location['id'];
+
+            // 4️⃣ Jika default → reset alamat lain
             if ($request->boolean('is_default')) {
-                Address::where('user_id', $request->user()->id)
+                Address::where('user_id', $validated['user_id'])
                     ->update(['is_default' => false]);
             }
 
-            // 4. Create address
+            // 5️⃣ Simpan alamat
             $address = Address::create($validated);
-
-            if (!$address) {
-                throw new \Exception("Gagal membuat alamat.");
-            }
 
             DB::commit();
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Address created successfully.',
+                'message' => 'Alamat berhasil disimpan',
                 'data' => new AddressResource($address)
             ], 201);
 
@@ -65,9 +78,8 @@ class AddressController extends Controller
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Gagal menyimpan alamat.',
-                // 'error' => $e->getMessage(),
-            ], 500);
+                'message' => $e->getMessage(),
+            ], 422);
         }
     }
     public function update(Request $request, Address $address)
