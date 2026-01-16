@@ -24,6 +24,17 @@ class VoucherController extends Controller
         ], 200);
     }
 
+    public function getVoucher($id)
+    {
+        $voucher = Voucher::findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Voucher retrieved successfully.',
+            'data' => new VoucherResource($voucher)
+        ], 200);
+    }
+
     // POST /vouchers
     public function store(Request $request)
     {

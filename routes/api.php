@@ -40,6 +40,8 @@ Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/product/{id}', [ProductController::class, 'getProduct']);
+Route::get('/category/{id}', [CategoryController::class, 'getCategory']);
+Route::get('/voucher/{id}', [VoucherController::class, 'getVoucher']);
 Route::get('/products/latest', [ProductController::class, 'latest']);
 Route::get('/products/best-seller', [ProductController::class, 'bestSeller']);
 
@@ -78,9 +80,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/orders/by-number/{orderNumber}', [OrderController::class, 'showByNumber']);
 
     Route::get('/orders/{id}', [OrderController::class, 'show']);
-
 });
-
 
 Route::post('/midtrans/callback', [MidtransController::class, 'handle']);
 Route::get('/vouchers', [VoucherController::class, 'index']);

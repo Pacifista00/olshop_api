@@ -22,6 +22,16 @@ class CategoryController extends Controller
             'data' => CategoryResource::collection($categories)
         ], 200);
     }
+    public function getCategory($id)
+    {
+        $category = Category::findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Category retrieved successfully.',
+            'data' => new CategoryResource($category)
+        ], 200);
+    }
 
     // POST /categories
     public function store(Request $request)
@@ -148,25 +158,22 @@ class CategoryController extends Controller
     // DELETE /categories/{category}
     public function destroy(Category $category)
     {
+        // 1. Simpan path icon sebelum data dihapus
+        $iconPath = $category->icon;
+
         DB::beginTransaction();
 
         try {
-            $iconPath = $category->icon; // simpan path icon
+            // 2. Hapus data dari database (Hanya satu kali)
+            $category->delete();
 
-            if (!$category->delete()) {
-                throw new \Exception("Gagal menghapus kategori.");
-            }
+            // 3. Commit transaksi database dulu
+            DB::commit();
 
-            // hapus icon dari storage setelah data berhasil dihapus
+            // 4. Hapus file fisik HANYA JIKA transaksi DB sukses
             if ($iconPath && Storage::disk('public')->exists($iconPath)) {
                 Storage::disk('public')->delete($iconPath);
             }
-
-            if (!$category->delete()) {
-                throw new \Exception("Gagal menghapus kategori.");
-            }
-
-            DB::commit();
 
             return response()->json([
                 'status' => 'success',
@@ -175,13 +182,12 @@ class CategoryController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-
+            // Jika ada error di DB, data tidak jadi dihapus, dan file tetap aman
             DB::rollBack();
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Gagal menghapus kategori.',
-                // 'error' => $e->getMessage(),
+                'message' => 'Gagal menghapus kategori: ' . $e->getMessage(),
             ], 500);
         }
     }
