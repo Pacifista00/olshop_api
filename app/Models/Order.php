@@ -11,6 +11,19 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
+    const STATUS_CREATED = 'created';
+    const STATUS_PENDING = 'pending';
+    const STATUS_PROCESSING = 'processing';
+    const STATUS_SHIPPED = 'shipped';
+    const STATUS_COMPLETED = 'completed';
+    const STATUS_CANCELLED = 'cancelled';
+
+    const PAYMENT_UNPAID = 'unpaid';
+    const PAYMENT_PENDING = 'pending';
+    const PAYMENT_PAID = 'paid';
+    const PAYMENT_FAILED = 'failed';
+    const PAYMENT_EXPIRED = 'expired';
+
     use HasFactory, HasUuids;
 
     public $incrementing = false;
@@ -33,6 +46,8 @@ class Order extends Model
         'courier',
         'courier_service',
         'shipping_etd',
+        'paid_at',
+        'midtrans_response'
     ];
     protected $casts = [
         'total_amount' => 'decimal:2',

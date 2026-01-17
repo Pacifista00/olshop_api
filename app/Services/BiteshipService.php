@@ -19,28 +19,59 @@ class BiteshipService
         string $city,
         string $province
     ): ?array {
-        $keyword = trim($city . ' ' . $province);
 
-        $res = self::client()->get(
-            'https://api.biteship.com/v1/locations',
+        $keyword = trim($city);
+
+        $response = self::client()->get(
+            'https://api.biteship.com/v1/maps/areas',
             [
-                'search' => $keyword,
+                'countries' => 'ID',
+                'input' => $keyword,
+                'type' => 'single',
             ]
-        )->json();
+        );
 
-        if (empty($res['locations'])) {
+        if (!$response->successful()) {
             return null;
         }
 
-        return collect($res['locations'])
-            ->first(
-                fn($loc) =>
+        $areas = $response->json('areas');
+
+        if (empty($areas)) {
+            return null;
+        }
+
+        // 1️⃣ Prioritas: city + province match
+        foreach ($areas as $area) {
+            if (
                 strcasecmp(
-                    $loc['administrative_division_level_2_name'] ?? '',
+                    $area['administrative_division_level_2_name'] ?? '',
                     $city
                 ) === 0
-            )
-            ?? $res['locations'][0];
+                &&
+                strcasecmp(
+                    $area['administrative_division_level_1_name'] ?? '',
+                    $province
+                ) === 0
+            ) {
+                return $area;
+            }
+        }
+
+        // 2️⃣ Fallback: city match saja
+        foreach ($areas as $area) {
+            if (
+                strcasecmp(
+                    $area['administrative_division_level_2_name'] ?? '',
+                    $city
+                ) === 0
+            ) {
+                return $area;
+            }
+        }
+
+        // 3️⃣ Fallback terakhir
+        return $areas[0];
     }
 
 

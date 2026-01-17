@@ -11,6 +11,7 @@ use App\Models\Voucher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Services\BiteshipService;
+use Illuminate\Support\Facades\Log;
 
 class OrderService
 {
@@ -41,7 +42,6 @@ class OrderService
                 throw new \Exception('Alamat default belum diset');
             }
 
-
             $subtotal = 0;
             $products = [];
 
@@ -63,16 +63,12 @@ class OrderService
             $voucherDiscount = 0;
 
             if ($voucherCode) {
-                $voucher = Voucher::where('code', $voucherCode)
-                    ->lockForUpdate()
+                $voucher = Voucher::lockForUpdate()
+                    ->where('code', $voucherCode)
                     ->first();
 
-                if (!$voucher) {
-                    throw new \Exception('Voucher tidak ditemukan');
-                }
-
-                if (!$voucher->is_active) {
-                    throw new \Exception('Voucher tidak aktif');
+                if (!$voucher || !$voucher->is_active) {
+                    throw new \Exception('Voucher tidak valid');
                 }
 
                 if ($voucher->starts_at && now()->lt($voucher->starts_at)) {
@@ -91,20 +87,17 @@ class OrderService
                     throw new \Exception('Voucher sudah habis');
                 }
 
-
                 // Hitung diskon
-                if ($voucher->type === 'percentage') {
-                    $voucherDiscount = $subtotal * ($voucher->value / 100);
-                } else {
-                    $voucherDiscount = $voucher->value;
-                }
+                $voucherDiscount = $voucher->type === 'percentage'
+                    ? $subtotal * ($voucher->value / 100)
+                    : $voucher->value;
 
                 if ($voucher->max_discount) {
                     $voucherDiscount = min($voucherDiscount, $voucher->max_discount);
                 }
             }
 
-            // 5️⃣ Ongkir
+            // 5️⃣ Ongkir (Biteship)
             $biteshipItems = [];
 
             foreach ($cart->items as $cartItem) {
@@ -121,7 +114,7 @@ class OrderService
             $rates = BiteshipService::getRates([
                 'origin_area_id' => config('services.biteship.origin'),
                 'destination_area_id' => $address->biteship_location_id,
-                'couriers' => 'jne,jnt,sicepat', // 🔥 SAMA DENGAN PREVIEW
+                'couriers' => 'jne,jnt,sicepat',
                 'items' => $biteshipItems,
             ]);
 
@@ -131,43 +124,25 @@ class OrderService
                 throw new \Exception('Tidak ada pricing dari Biteship');
             }
 
-            $byCourier = $pricing->where('courier_code', $courierCode);
-
-            if ($byCourier->isEmpty()) {
-                throw new \Exception("Kurir {$courierCode} tidak tersedia");
-            }
-
-            $byService = $byCourier->first(
-                fn($item) =>
-                strtolower($item['courier_service_code']) === strtolower($courierServiceCode)
-            );
-
-            if (!$byService) {
-                throw new \Exception(
-                    "Service {$courierServiceCode} tidak tersedia untuk kurir {$courierCode}"
+            $service = $pricing
+                ->where('courier_code', $courierCode)
+                ->first(
+                    fn($item) =>
+                    strtolower($item['courier_service_code']) === strtolower($courierServiceCode)
                 );
+
+            if (!$service) {
+                throw new \Exception('Service pengiriman tidak tersedia');
             }
 
-            if ((int) $byService['price'] !== (int) $shippingPrice) {
-                throw new \Exception(
-                    "Harga ongkir berubah. Server: {$byService['price']}, Client: {$shippingPrice}"
-                );
-            }
-
-            $service = $byService;
-
-            // 🔒 VALIDASI HARGA
             if ((int) $service['price'] !== (int) $shippingPrice) {
-                throw new \Exception('Harga ongkir berubah, silakan pilih ulang kurir');
+                throw new \Exception('Harga ongkir berubah');
             }
 
             $shippingCost = (int) $service['price'];
 
             // 6️⃣ Total FINAL
-            $total = max(
-                0,
-                $subtotal - $voucherDiscount + $shippingCost
-            );
+            $total = max(0, $subtotal - $voucherDiscount + $shippingCost);
 
             // 7️⃣ Create order
             $order = Order::create([
@@ -185,12 +160,11 @@ class OrderService
                 'courier' => $courierCode,
                 'courier_service' => strtoupper($courierServiceCode),
 
-                'payment_status' => 'pending',
-                'status' => 'pending',
+                'payment_status' => Order::PAYMENT_UNPAID,
+                'status' => Order::STATUS_CREATED,
             ]);
 
-
-            // 8️⃣ Order items + kurangi stok
+            // 8️⃣ Order items
             foreach ($cart->items as $cartItem) {
                 $product = $products[$cartItem->product_id];
 
@@ -201,19 +175,21 @@ class OrderService
                     'unit_price' => $product->price,
                     'subtotal' => $product->price * $cartItem->quantity,
                 ]);
-
-                $product->decrement('stock', $cartItem->quantity);
             }
 
-            // 9️⃣ Increment usage voucher (jika dipakai)
+            // 9️⃣ Increment usage voucher
             if ($voucher) {
                 $voucher->increment('usage_count');
             }
 
+            // Logging
+            Log::info('Checkout success', [
+                'order_id' => $order->id,
+                'user_id' => $user->id,
+                'total' => $total,
+            ]);
 
             return $order;
         });
     }
-
-
 }

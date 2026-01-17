@@ -2,22 +2,32 @@
 
 namespace App\Services;
 
-use App\Models\Address;
-use App\Models\Product;
 use Midtrans\Config;
 use Midtrans\Snap;
 
 class MidtransService
 {
-    public static function init()
+    public static function init(): void
     {
         Config::$serverKey = config('midtrans.server_key');
         Config::$isProduction = config('midtrans.is_production');
         Config::$isSanitized = true;
         Config::$is3ds = true;
     }
+
     public static function verifySignature(array $payload): bool
     {
+        if (
+            !isset(
+            $payload['order_id'],
+            $payload['status_code'],
+            $payload['gross_amount'],
+            $payload['signature_key']
+        )
+        ) {
+            return false;
+        }
+
         $serverKey = config('midtrans.server_key');
 
         $signature = hash(
@@ -28,27 +38,35 @@ class MidtransService
             . $serverKey
         );
 
-        return $signature === ($payload['signature_key'] ?? null);
+        return hash_equals($signature, $payload['signature_key']);
     }
+
     public static function mapPaymentStatus(string $transactionStatus, ?string $fraudStatus = null): array
     {
-        return match ($transactionStatus) {
-            'capture' => $fraudStatus === 'accept'
-            ? ['payment_status' => 'paid', 'status' => 'processing']
-            : ['payment_status' => 'pending', 'status' => 'pending'],
+        switch ($transactionStatus) {
 
-            'settlement' => ['payment_status' => 'paid', 'status' => 'processing'],
+            case 'capture':
+                return $fraudStatus === 'accept'
+                    ? ['payment_status' => 'paid', 'status' => 'processing']
+                    : ['payment_status' => 'pending', 'status' => 'pending'];
 
-            'pending' => ['payment_status' => 'pending', 'status' => 'pending'],
+            case 'settlement':
+                return ['payment_status' => 'paid', 'status' => 'processing'];
 
-            'deny', 'expire', 'cancel'
-            => ['payment_status' => 'failed', 'status' => 'cancelled'],
+            case 'pending':
+                return ['payment_status' => 'pending', 'status' => 'pending'];
 
-            default => ['payment_status' => 'pending', 'status' => 'pending'],
-        };
+            case 'deny':
+            case 'cancel':
+            case 'expire':
+                return ['payment_status' => 'failed', 'status' => 'cancelled'];
+
+            default:
+                return ['payment_status' => 'pending', 'status' => 'pending'];
+        }
     }
 
-    public static function createSnapToken(array $params)
+    public static function createSnapToken(array $params): string
     {
         self::init();
         return Snap::getSnapToken($params);

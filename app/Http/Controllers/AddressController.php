@@ -41,11 +41,6 @@ class AddressController extends Controller
                 $validated['city'],
                 $validated['province']
             );
-            dd([
-                'city' => $validated['city'],
-                'province' => $validated['province'],
-                'response' => $res ?? null
-            ]);
 
             if (!$location) {
                 throw new \Exception('Alamat tidak ditemukan di sistem pengiriman');
