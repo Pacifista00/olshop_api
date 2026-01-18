@@ -108,7 +108,11 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'image' => 'nullable|image|max:2048',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'weight' => 'nullable|numeric|min:0',
+            'length' => 'nullable|numeric|min:0',
+            'width' => 'nullable|numeric|min:0',
+            'height' => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
@@ -130,6 +134,10 @@ class ProductController extends Controller
                 'stock' => $validated['stock'],
                 'image' => $validated['image'] ?? null,
                 'is_active' => $validated['is_active'] ?? true,
+                'weight' => $validated['weight'] ?? null,
+                'length' => $validated['length'] ?? null,
+                'width' => $validated['width'] ?? null,
+                'height' => $validated['height'] ?? null,
             ]);
 
             if (!$product) {
@@ -151,7 +159,7 @@ class ProductController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Gagal membuat produk.',
-                // 'error' => $e->getMessage()
+                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -166,7 +174,11 @@ class ProductController extends Controller
             'price' => 'sometimes|numeric|min:0',
             'stock' => 'sometimes|integer|min:0',
             'image' => 'sometimes|image|max:2048',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'weight' => 'nullable|numeric|min:0',
+            'length' => 'nullable|numeric|min:0',
+            'width' => 'nullable|numeric|min:0',
+            'height' => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
@@ -192,6 +204,10 @@ class ProductController extends Controller
                 'stock' => $validated['stock'] ?? $product->stock,
                 'image' => $validated['image'] ?? $product->image,
                 'is_active' => $validated['is_active'] ?? $product->is_active,
+                'weight' => $validated['weight'] ?? null,
+                'length' => $validated['length'] ?? null,
+                'width' => $validated['width'] ?? null,
+                'height' => $validated['height'] ?? null,
             ]);
 
             if (!$updated) {
@@ -249,7 +265,7 @@ class ProductController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Gagal menghapus produk.',
-                // 'error' => $e->getMessage()
+                'error' => $e->getMessage()
             ], 500);
         }
     }
