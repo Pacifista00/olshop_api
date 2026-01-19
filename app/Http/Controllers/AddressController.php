@@ -20,6 +20,24 @@ class AddressController extends Controller
             'data' => AddressResource::collection($addresses)
         ], 200);
     }
+    public function show(Request $request, Address $address)
+    {
+        // Pastikan address milik user yang login
+        if ($address->user_id !== $request->user()->id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized access to this address.'
+            ], 403);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Address retrieved successfully.',
+            'data' => new AddressResource($address)
+        ], 200);
+    }
+
+
     public function store(Request $request)
     {
         // 1️⃣ Validasi input
@@ -79,7 +97,6 @@ class AddressController extends Controller
     }
     public function update(Request $request, Address $address)
     {
-        // 1. Pastikan address milik user yang login
         if ($address->user_id !== $request->user()->id) {
             return response()->json([
                 'status' => 'error',
@@ -87,7 +104,6 @@ class AddressController extends Controller
             ], 403);
         }
 
-        // 2. Validasi input
         $validated = $request->validate([
             'recipient_name' => 'sometimes|string|max:255',
             'phone' => 'sometimes|string|max:15',
@@ -95,25 +111,30 @@ class AddressController extends Controller
             'city' => 'sometimes|string|max:100',
             'province' => 'sometimes|string|max:100',
             'postal_code' => 'sometimes|string|max:10',
-            'is_default' => 'boolean'
+            'is_default' => 'sometimes|boolean',
         ]);
 
         DB::beginTransaction();
 
         try {
 
-            // 3. Jika update dijadikan default → reset alamat lain
-            if ($request->boolean('is_default')) {
+            // ✅ JIKA user MENGAKTIFKAN default
+            if ($request->has('is_default') && $request->boolean('is_default')) {
+
+                // ⛔ reset alamat LAIN SAJA (BUKAN yang ini)
                 Address::where('user_id', $request->user()->id)
-                    ->update(['is_default' => false]);
+                    ->where('id', '!=', $address->id)
+                    ->update(['is_default' => 0]);
+
+                $validated['is_default'] = 1;
             }
 
-            // 4. Update address
-            $updated = $address->update($validated);
-
-            if (!$updated) {
-                throw new \Exception("Gagal mengupdate alamat.");
+            // ✅ JIKA is_default tidak dikirim → JANGAN DIUBAH
+            if (!$request->has('is_default')) {
+                unset($validated['is_default']);
             }
+
+            $address->update($validated);
 
             DB::commit();
 
@@ -130,10 +151,11 @@ class AddressController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Gagal mengupdate alamat.',
-                'error' => $e->getMessage(), // optional
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
     public function destroy(Request $request, Address $address)
     {
         // 1. Pastikan address milik user yang login

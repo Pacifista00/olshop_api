@@ -50,6 +50,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::get('/addresses', [AddressController::class, 'index']);
+    Route::get('/addresses/{address}', [AddressController::class, 'show']);
     Route::post('/addresses/store', [AddressController::class, 'store']);
     Route::put('/addresses/update/{address}', [AddressController::class, 'update']);
     Route::delete('/addresses/delete/{address}', [AddressController::class, 'destroy']);
@@ -79,6 +80,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/orders/by-number/{orderNumber}', [OrderController::class, 'showByNumber']);
 
+    Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
 });
 
