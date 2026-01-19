@@ -14,13 +14,19 @@ class CategoryController extends Controller
     // GET /categories
     public function index()
     {
-        $categories = Category::all();
+        $categories = Category::paginate(12);
 
         return response()->json([
             'status' => 'success',
             'message' => 'List of categories retrieved successfully.',
-            'data' => CategoryResource::collection($categories)
-        ], 200);
+            'data' => CategoryResource::collection($categories->items()),
+            'meta' => [
+                'current_page' => $categories->currentPage(),
+                'last_page' => $categories->lastPage(),
+                'per_page' => $categories->perPage(),
+                'total' => $categories->total(),
+            ],
+        ]);
     }
     public function getCategory($id)
     {

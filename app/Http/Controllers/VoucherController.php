@@ -15,14 +15,21 @@ class VoucherController extends Controller
     // GET /vouchers
     public function index()
     {
-        $vouchers = Voucher::orderByDesc('created_at')->get();
+        $vouchers = Voucher::orderByDesc('created_at')->paginate(12);
 
         return response()->json([
             'status' => 'success',
             'message' => 'List of vouchers retrieved successfully.',
-            'data' => VoucherResource::collection($vouchers),
+            'data' => VoucherResource::collection($vouchers->items()),
+            'meta' => [
+                'current_page' => $vouchers->currentPage(),
+                'last_page' => $vouchers->lastPage(),
+                'per_page' => $vouchers->perPage(),
+                'total' => $vouchers->total(),
+            ],
         ], 200);
     }
+
 
     public function getVoucher($id)
     {
