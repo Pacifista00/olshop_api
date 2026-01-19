@@ -24,15 +24,28 @@ class BiteshipController extends Controller
                 ], 400);
             }
 
-            $address = Address::where('user_id', $user->id)
-                ->where('is_default', true)
-                ->first();
+            $addresses = Address::where('user_id', $user->id)->get();
 
-            if (!$address) {
+            // 1️⃣ Belum ada alamat sama sekali
+            if ($addresses->isEmpty()) {
                 return response()->json([
-                    'message' => 'Alamat belum tersedia, Silahkan tambahkan alamat anda'
+                    'status' => 'error',
+                    'message' => 'Alamat belum ditambahkan. Silakan tambahkan alamat terlebih dahulu.'
                 ], 400);
             }
+
+            // 2️⃣ Sudah ada alamat tapi belum ada yang default
+            $defaultAddress = $addresses->firstWhere('is_default', true);
+
+            if (!$defaultAddress) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Alamat utama belum ditentukan. Silakan pilih salah satu alamat sebagai alamat utama.'
+                ], 400);
+            }
+
+            // 3️⃣ Alamat default ditemukan → lanjut proses
+            $address = $defaultAddress;
 
             if (!$address->biteship_location_id) {
                 return response()->json([
