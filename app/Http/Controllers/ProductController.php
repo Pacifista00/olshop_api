@@ -60,6 +60,31 @@ class ProductController extends Controller
         ], 200);
     }
 
+    public function homeProducts(Request $request)
+    {
+        $query = Product::with('category');
+
+        // FILTER KATEGORI
+        if ($request->filled('category')) {
+            $query->whereHas('category', function ($q) use ($request) {
+                $q->where('slug', $request->category);
+            });
+        }
+
+        // Ambil maksimal 6 produk (misalnya terbaru)
+        $products = $query
+            ->latest()
+            ->limit(5)
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'List of products retrieved successfully.',
+            'data' => ProductResource::collection($products),
+        ], 200);
+    }
+
+
     public function getProduct($id)
     {
         $product = Product::with('category')

@@ -39,6 +39,7 @@ Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'
 
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/products', [ProductController::class, 'index']);
+Route::get('/home-products', [ProductController::class, 'homeProducts']);
 Route::get('/vouchers', [VoucherController::class, 'index']);
 Route::get('/product/{id}', [ProductController::class, 'getProduct']);
 Route::get('/category/{id}', [CategoryController::class, 'getCategory']);
