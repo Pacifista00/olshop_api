@@ -16,7 +16,8 @@ class AuthController extends Controller
 {
     public function me(Request $request)
     {
-        $user = $request->user();
+        $user = $request->user()->load('point');
+
 
         if (!$user) {
             return response()->json([
@@ -35,6 +36,7 @@ class AuthController extends Controller
                 'gender' => $user->gender,
                 'role' => $user->role,
                 'status' => $user->status,
+                'points' => $user->point?->total_points ?? 0,
                 'email_verified_at' => $user->email_verified_at,
                 'created_at' => $user->created_at,
             ]
@@ -282,7 +284,7 @@ class AuthController extends Controller
         }
 
         // Hapus token lama (opsional)
-        $user->tokens()->delete();
+        // $user->tokens()->delete();
 
         // Buat token baru
         $token = $user->createToken('auth-token')->plainTextToken;

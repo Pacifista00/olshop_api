@@ -77,4 +77,8 @@ class User extends Authenticatable
     {
         return $this->hasOne(Cart::class);
     }
+    public function point()
+    {
+        return $this->hasOne(UserPoint::class, 'user_id');
+    }
 }
