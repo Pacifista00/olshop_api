@@ -16,6 +16,16 @@ class ProductController extends Controller
     {
         $query = Product::with('category');
 
+        // SEARCH 
+        if ($request->filled('search')) {
+            $search = $request->search;
+
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
         // FILTER KATEGORI
         if ($request->filled('category')) {
             $query->whereHas('category', function ($q) use ($request) {
