@@ -29,6 +29,25 @@ class VoucherController extends Controller
             ],
         ], 200);
     }
+    public function publicIndex()
+    {
+        $vouchers = Voucher::where('visibility', 'public')
+            ->orderByDesc('created_at')
+            ->paginate(12);
+
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'List of vouchers retrieved successfully.',
+            'data' => VoucherResource::collection($vouchers->items()),
+            'meta' => [
+                'current_page' => $vouchers->currentPage(),
+                'last_page' => $vouchers->lastPage(),
+                'per_page' => $vouchers->perPage(),
+                'total' => $vouchers->total(),
+            ],
+        ], 200);
+    }
 
 
     public function getVoucher($id)
@@ -48,6 +67,8 @@ class VoucherController extends Controller
         $validated = $request->validate([
             'code' => 'required|string|max:30|unique:vouchers,code',
             'name' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+            'visibility' => 'required|in:public,hidden',
             'type' => 'required|in:percentage,fixed',
             'value' => 'required|numeric|min:0',
             'max_discount' => 'nullable|numeric|min:0',
@@ -59,15 +80,26 @@ class VoucherController extends Controller
         ]);
 
         DB::beginTransaction();
+        $type = $validated['type'];
+        $value = $validated['value'];
+
+        $maxDiscount = $validated['max_discount'] ?? null;
+
+        // Jika fixed → max_discount = value
+        if ($type === 'fixed') {
+            $maxDiscount = $value;
+        }
 
         try {
             $voucher = Voucher::create([
                 'id' => Str::uuid(),
                 'code' => strtoupper($validated['code']),
                 'name' => $validated['name'] ?? null,
+                'description' => $validated['description'],
+                'visibility' => $validated['visibility'],
                 'type' => $validated['type'],
                 'value' => $validated['value'],
-                'max_discount' => $validated['max_discount'] ?? null,
+                'max_discount' => $maxDiscount,
                 'min_order_amount' => $validated['min_order_amount'] ?? null,
                 'usage_limit' => $validated['usage_limit'] ?? null,
                 'starts_at' => $validated['starts_at'] ?? null,
@@ -115,6 +147,8 @@ class VoucherController extends Controller
         $validated = $request->validate([
             'code' => 'required|string|max:30|unique:vouchers,code,' . $voucher->id,
             'name' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+            'visibility' => 'required|in:public,hidden',
             'type' => 'required|in:percentage,fixed',
             'value' => 'required|numeric|min:0',
             'max_discount' => 'nullable|numeric|min:0',
@@ -131,6 +165,8 @@ class VoucherController extends Controller
             $updated = $voucher->update([
                 'code' => strtoupper($validated['code']),
                 'name' => $validated['name'] ?? null,
+                'description' => $validated['description'],
+                'visibility' => $validated['visibility'],
                 'type' => $validated['type'],
                 'value' => $validated['value'],
                 'max_discount' => $validated['max_discount'] ?? null,

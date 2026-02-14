@@ -40,7 +40,8 @@ Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/home-products', [ProductController::class, 'homeProducts']);
-Route::get('/vouchers', [VoucherController::class, 'index']);
+Route::get('/vouchers', [VoucherController::class, 'publicIndex']);
+Route::get('/vouchers-admin', [VoucherController::class, 'index']);
 Route::get('/product/{id}', [ProductController::class, 'getProduct']);
 Route::get('/category/{id}', [CategoryController::class, 'getCategory']);
 Route::get('/voucher/{id}', [VoucherController::class, 'getVoucher']);

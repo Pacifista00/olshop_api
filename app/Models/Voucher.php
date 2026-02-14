@@ -16,6 +16,8 @@ class Voucher extends Model
     protected $fillable = [
         'code',
         'name',
+        'description',
+        'visibility',
 
         // Diskon
         'type',
