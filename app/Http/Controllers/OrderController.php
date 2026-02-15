@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CheckoutRequest;
+use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Services\OrderService;
 use App\Services\MidtransService;
@@ -14,43 +15,18 @@ class OrderController extends Controller
         $orders = Order::with(['items.product'])
             ->where('user_id', auth()->id())
             ->orderByDesc('created_at')
-            ->get();
+            ->paginate(10);
 
         return response()->json([
-            'data' => $orders->map(function ($order) {
-                return [
-                    'id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'payment_status' => $order->payment_status,
-
-                    'created_at' => $order->created_at->toISOString(),
-                    'created_at_formatted' => $order->created_at->format('d M Y H:i'),
-
-                    'subtotal_amount' => $order->subtotal_amount,
-                    'shipping_cost' => $order->shipping_cost,
-                    'voucher_discount' => $order->voucher_discount,
-                    'total_amount' => $order->total_amount,
-
-                    'courier' => [
-                        'code' => $order->courier,
-                        'service' => $order->courier_service,
-                        'etd' => $order->courier_etd,
-                    ],
-
-                    'items' => $order->items->map(function ($item) {
-                        return [
-                            'id' => $item->id,
-                            'quantity' => $item->quantity,
-                            'unit_price' => $item->unit_price,
-                            'total_price' => $item->quantity * $item->unit_price,
-                            'product' => [
-                                'name' => $item->product->name,
-                                'image_url' => asset('storage/' . $item->product->image),
-                            ],
-                        ];
-                    }),
-                ];
-            })
+            'status' => 'success',
+            'message' => 'List of orders retrieved successfully.',
+            'data' => OrderResource::collection($orders),
+            'meta' => [
+                'current_page' => $orders->currentPage(),
+                'last_page' => $orders->lastPage(),
+                'per_page' => $orders->perPage(),
+                'total' => $orders->total(),
+            ],
         ]);
     }
 
@@ -108,43 +84,15 @@ class OrderController extends Controller
 
         if (!$order) {
             return response()->json([
+                'status' => 'error',
                 'message' => 'Order tidak ditemukan'
             ], 404);
         }
 
         return response()->json([
-            'data' => [
-                'id' => $order->id,
-                'order_number' => $order->order_number,
-                'payment_status' => $order->payment_status,
-
-                'created_at' => $order->created_at->toISOString(),
-                'created_at_formatted' => $order->created_at->format('d M Y H:i'),
-
-                'subtotal_amount' => $order->subtotal_amount,
-                'shipping_cost' => $order->shipping_cost,
-                'voucher_discount' => $order->voucher_discount,
-                'total_amount' => $order->total_amount,
-
-                'courier' => [
-                    'code' => $order->courier,
-                    'service' => $order->courier_service,
-                    'etd' => $order->courier_etd,
-                ],
-
-                'items' => $order->items->map(function ($item) {
-                    return [
-                        'id' => $item->id,
-                        'quantity' => $item->quantity,
-                        'unit_price' => $item->unit_price,
-                        'total_price' => $item->quantity * $item->unit_price,
-                        'product' => [
-                            'name' => $item->product->name,
-                            'image_url' => asset('storage/' . $item->product->image),
-                        ],
-                    ];
-                }),
-            ]
+            'status' => 'success',
+            'message' => 'Detail order retrieved successfully.',
+            'data' => new OrderResource($order)
         ]);
     }
 }

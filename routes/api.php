@@ -91,7 +91,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/orders/by-number/{orderNumber}', [OrderController::class, 'showByNumber']);
 
-    Route::get('/orders', [OrderController::class, 'index']);
+    Route::get('/orders/me', [OrderController::class, 'index']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
 
     Route::middleware(['auth:sanctum', 'role:admin,developer'])
