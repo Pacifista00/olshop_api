@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\AddressController;
 use App\Http\Controllers\BiteshipController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
@@ -52,6 +54,10 @@ Route::post('/midtrans/callback', [MidtransController::class, 'handle']);
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
+
+    Route::put('/profile/update', [ProfileController::class, 'update']);
+    Route::post('/profile/photo/update', [ProfileController::class, 'updatePhoto']);
+
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::get('/addresses', [AddressController::class, 'index']);
@@ -87,6 +93,16 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
+
+    Route::middleware(['auth:sanctum', 'role:admin,developer'])
+        ->prefix('admin')
+        ->group(function () {
+
+            Route::put('/users/{user}/update', [UserManagementController::class, 'update']);
+            Route::put('/users/photo/{user}/update', [UserManagementController::class, 'updatePhoto']);
+
+
+        });
 });
 
 
