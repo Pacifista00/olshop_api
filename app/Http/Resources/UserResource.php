@@ -23,7 +23,7 @@ class UserResource extends JsonResource
             'role' => $this->role,
             'point' => $this->point,
             'photo' => $this->photo
-                ? asset('storage/' . $this->photo)
+                ? $this->photo
                 : null,
         ];
     }

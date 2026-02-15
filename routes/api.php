@@ -53,7 +53,7 @@ Route::get('/products/best-seller', [ProductController::class, 'bestSeller']);
 Route::post('/midtrans/callback', [MidtransController::class, 'handle']);
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
-    Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/me', [ProfileController::class, 'me']);
 
     Route::put('/profile/update', [ProfileController::class, 'update']);
     Route::post('/profile/photo/update', [ProfileController::class, 'updatePhoto']);

@@ -14,34 +14,6 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    public function me(Request $request)
-    {
-        $user = $request->user()->load('point');
-
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthenticated'
-            ], 401);
-        }
-
-        return response()->json([
-            'success' => true,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone,
-                'gender' => $user->gender,
-                'role' => $user->role,
-                'status' => $user->status,
-                'points' => $user->point?->total_points ?? 0,
-                'email_verified_at' => $user->email_verified_at,
-                'created_at' => $user->created_at,
-            ]
-        ]);
-    }
 
     public function register(Request $request)
     {

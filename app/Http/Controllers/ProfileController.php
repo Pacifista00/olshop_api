@@ -16,6 +16,25 @@ class ProfileController extends Controller
     {
         $this->userService = $userService;
     }
+    public function me(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated'
+            ], 401);
+        }
+
+        $user->load('point');
+
+        return response()->json([
+            'success' => true,
+            'user' => new UserResource($user)
+        ]);
+    }
+
     public function update(UpdateUserRequest $request)
     {
         $user = $request->user();
