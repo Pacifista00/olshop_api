@@ -260,12 +260,14 @@ class AuthController extends Controller
 
         // Buat token baru
         $token = $user->createToken('auth-token')->plainTextToken;
+        $user->load('point');
 
         return response()->json([
             'success' => true,
             'message' => 'Login berhasil',
             'token' => $token,
-            'user' => $user
+            'user' => $user,
+
         ]);
     }
     public function logout(Request $request)

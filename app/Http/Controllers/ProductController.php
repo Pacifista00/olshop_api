@@ -110,7 +110,7 @@ class ProductController extends Controller
     {
         $products = Product::with('category')
             ->latest()
-            ->limit(8)
+            ->limit(12)
             ->get();
 
         return response()->json([
@@ -123,7 +123,7 @@ class ProductController extends Controller
     {
         $products = Product::with('category')
             ->latest()
-            ->limit(12)
+            ->limit(8)
             ->get();
 
         return response()->json([
