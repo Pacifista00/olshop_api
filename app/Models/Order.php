@@ -31,6 +31,9 @@ class Order extends Model
     protected $fillable = [
         'user_id',
         'shipping_address_id',
+        'customer_name',
+        'customer_phone',
+        'shipping_address_snapshot',
         'order_number',
         'subtotal_amount',
         'total_amount',
@@ -55,6 +58,7 @@ class Order extends Model
         'voucher_discount' => 'decimal:2',
         'transaction_time' => 'datetime',
         'midtrans_response' => 'array',
+        'shipping_address_snapshot' => 'array',
     ];
 
 

@@ -148,6 +148,16 @@ class OrderService
             $order = Order::create([
                 'user_id' => $user->id,
                 'shipping_address_id' => $address->id,
+                'customer_name' => $address->recipient_name,
+                'customer_phone' => $address->phone,
+                'shipping_address_snapshot' => [
+                    'recipient_name' => $address->recipient_name,
+                    'phone' => $address->phone,
+                    'full_address' => $address->full_address,
+                    'province' => $address->province,
+                    'city' => $address->city,
+                    'postal_code' => $address->postal_code,
+                ],
                 'order_number' => 'ORD-' . now()->format('YmdHis') . '-' . Str::random(6),
 
                 'subtotal_amount' => $subtotal,

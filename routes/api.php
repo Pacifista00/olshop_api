@@ -56,7 +56,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/me', [ProfileController::class, 'me']);
 
     Route::put('/profile/update', [ProfileController::class, 'update']);
-    Route::post('/profile/photo/update', [ProfileController::class, 'updatePhoto']);
+    Route::put('/profile/photo/update', [ProfileController::class, 'updatePhoto']);
 
     Route::post('/logout', [AuthController::class, 'logout']);
 
