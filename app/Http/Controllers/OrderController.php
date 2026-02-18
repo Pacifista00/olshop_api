@@ -65,6 +65,23 @@ class OrderController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
     }
+    public function retry(Order $order)
+    {
+        $user = auth()->user();
+
+        try {
+            $snapToken = OrderService::retryPayment($order, $user);
+
+            return response()->json([
+                'snapToken' => $snapToken
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+
     public function showByNumber($orderNumber)
     {
         $order = Order::where('order_number', $orderNumber)

@@ -86,6 +86,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/voucher/preview', [VoucherController::class, 'preview']);
 
     Route::post('/checkout', [OrderController::class, 'checkout']);
+    Route::post('/checkout/order/{order}', [OrderController::class, 'retry']);
 
     Route::get('/preview-shipping', [BiteshipController::class, 'previewShipping']);
 

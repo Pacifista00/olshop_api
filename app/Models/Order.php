@@ -50,7 +50,8 @@ class Order extends Model
         'courier_service',
         'shipping_etd',
         'paid_at',
-        'midtrans_response'
+        'midtrans_response',
+        'voucher_usage_counted'
     ];
     protected $casts = [
         'total_amount' => 'decimal:2',

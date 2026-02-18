@@ -158,7 +158,7 @@ class OrderService
                     'city' => $address->city,
                     'postal_code' => $address->postal_code,
                 ],
-                'order_number' => 'ORD-' . now()->format('YmdHis') . '-' . Str::random(6),
+                'order_number' => 'ORD-' . Str::uuid(),
 
                 'subtotal_amount' => $subtotal,
                 'voucher_id' => $voucher?->id,
@@ -187,10 +187,10 @@ class OrderService
                 ]);
             }
 
-            // 9️⃣ Increment usage voucher
-            if ($voucher) {
-                $voucher->increment('usage_count');
-            }
+
+            // 9️⃣ Clear cart
+            $cart->items()->delete();
+
 
             // Logging
             Log::info('Checkout success', [
@@ -202,4 +202,50 @@ class OrderService
             return $order;
         });
     }
+    public static function retryPayment(Order $order, $user): string
+    {
+        return DB::transaction(function () use ($order, $user) {
+
+            $order = Order::where('id', $order->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($order->user_id !== $user->id) {
+                throw new \Exception('Order tidak ditemukan');
+            }
+
+            if ($order->payment_status !== Order::PAYMENT_UNPAID) {
+                throw new \Exception('Order sudah dibayar');
+            }
+
+            if ($order->created_at->addHours(1)->isPast()) {
+                throw new \Exception('Order sudah expired');
+            }
+
+            // ✅ Idempotent: kalau sudah ada token, return saja
+            if ($order->midtrans_snap_token) {
+                return $order->midtrans_snap_token;
+            }
+
+            // Generate token
+            $snapToken = MidtransService::createSnapToken([
+                'transaction_details' => [
+                    'order_id' => $order->order_number,
+                    'gross_amount' => (int) $order->total_amount
+                ],
+                'customer_details' => [
+                    'first_name' => $order->customer_name,
+                    'email' => $user->email
+                ]
+            ]);
+
+            $order->update([
+                'midtrans_snap_token' => $snapToken
+            ]);
+
+            return $snapToken;
+        });
+    }
+
+
 }
