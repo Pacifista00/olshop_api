@@ -6,7 +6,9 @@ use App\Models\Address;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\PointHistory;
 use App\Models\Product;
+use App\Models\UserPoint;
 use App\Models\Voucher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -17,52 +19,80 @@ class OrderService
 {
     public static function checkoutFromCart(
         $user,
-        string $courierCode,
-        string $courierServiceCode,
-        int $shippingPrice,
-        ?string $voucherCode = null
+        array $shippingData,
+        ?string $voucherCode = null,
+        int $pointsUsed = 0
     ): Order {
-        return DB::transaction(function () use ($user, $courierCode, $courierServiceCode, $shippingPrice, $voucherCode) {
 
-            // 1️⃣ Cart
+        return DB::transaction(function () use ($user, $shippingData, $voucherCode, $pointsUsed) {
+
+            if (empty($shippingData['address'])) {
+                throw new \Exception('Alamat tidak valid');
+            }
+
             $cart = Cart::where('user_id', $user->id)
                 ->with('items.product')
+                ->lockForUpdate()
                 ->firstOrFail();
 
             if ($cart->items->isEmpty()) {
                 throw new \Exception('Keranjang kosong');
             }
 
-            // 2️⃣ Address
-            $address = Address::where('user_id', $user->id)
-                ->where('is_default', true)
-                ->first();
-
-            if (!$address) {
-                throw new \Exception('Alamat default belum diset');
+            if ($pointsUsed < 0) {
+                throw new \Exception('Point tidak valid');
             }
 
+            /**
+             * =========================================
+             * POINT CHECK
+             * =========================================
+             */
+            $userPoint = UserPoint::lockForUpdate()
+                ->where('user_id', $user->id)
+                ->first();
+
+            $availablePoints = $userPoint?->total_points ?? 0;
+
+            if ($pointsUsed > $availablePoints) {
+                throw new \Exception('Point tidak mencukupi');
+            }
+
+            /**
+             * =========================================
+             * SUBTOTAL + STOCK CHECK
+             * =========================================
+             */
             $subtotal = 0;
             $products = [];
 
-            // 3️⃣ Subtotal + lock stok
             foreach ($cart->items as $cartItem) {
+
                 $product = Product::lockForUpdate()
                     ->findOrFail($cartItem->product_id);
 
-                if ($product->stock < $cartItem->quantity) {
+                $availableStock = $product->stock - $product->reserved_stock;
+
+                if ($availableStock < $cartItem->quantity) {
                     throw new \Exception("Stok {$product->name} tidak cukup");
                 }
+
+                $product->increment('reserved_stock', $cartItem->quantity);
 
                 $products[$product->id] = $product;
                 $subtotal += $product->price * $cartItem->quantity;
             }
 
-            // 4️⃣ Voucher (OPSIONAL)
+            /**
+             * =========================================
+             * VOUCHER VALIDATION
+             * =========================================
+             */
             $voucher = null;
             $voucherDiscount = 0;
 
             if ($voucherCode) {
+
                 $voucher = Voucher::lockForUpdate()
                     ->where('code', $voucherCode)
                     ->first();
@@ -87,94 +117,89 @@ class OrderService
                     throw new \Exception('Voucher sudah habis');
                 }
 
-                // Hitung diskon
                 $voucherDiscount = $voucher->type === 'percentage'
-                    ? $subtotal * ($voucher->value / 100)
-                    : $voucher->value;
+                    ? (int) floor($subtotal * ($voucher->value / 100))
+                    : (int) $voucher->value;
 
                 if ($voucher->max_discount) {
                     $voucherDiscount = min($voucherDiscount, $voucher->max_discount);
                 }
             }
 
-            // 5️⃣ Ongkir (Biteship)
-            $biteshipItems = [];
+            /**
+             * =========================================
+             * POINT CALCULATION
+             * =========================================
+             */
+            /**
+             * =========================================
+             * POINT CALCULATION (FIXED)
+             * =========================================
+             */
+            $pointValue = 5000;
 
-            foreach ($cart->items as $cartItem) {
-                $product = $products[$cartItem->product_id];
+            // berapa poin maksimal yang boleh dipakai berdasarkan total
+            $maxPointCanUse = (int) floor(
+                max(0, $subtotal - $voucherDiscount + $shippingData['shipping_cost'])
+                / $pointValue
+            );
 
-                $biteshipItems[] = [
-                    'name' => $product->name,
-                    'value' => (int) $product->price,
-                    'quantity' => $cartItem->quantity,
-                    'weight' => max(1, (int) $product->weight),
-                ];
+            // clamp request user
+            $actualPointsUsed = min($pointsUsed, $maxPointCanUse);
+
+            // hitung diskon FINAL dari poin yang benar-benar dipakai
+            $pointDiscount = $actualPointsUsed * $pointValue;
+
+            if ($pointsUsed > 0 && $actualPointsUsed === 0) {
+                throw new \Exception('Point tidak mencukupi untuk digunakan');
             }
 
-            $rates = BiteshipService::getRates([
-                'origin_area_id' => config('services.biteship.origin'),
-                'destination_area_id' => $address->biteship_location_id,
-                'couriers' => 'jne,jnt,sicepat',
-                'items' => $biteshipItems,
-            ]);
+            /**
+             * =========================================
+             * FINAL TOTAL
+             * =========================================
+             */
+            $total = max(
+                0,
+                $subtotal - $voucherDiscount - $pointDiscount + $shippingData['shipping_cost']
+            );
 
-            $pricing = collect($rates['pricing'] ?? []);
-
-            if ($pricing->isEmpty()) {
-                throw new \Exception('Tidak ada pricing dari Biteship');
-            }
-
-            $service = $pricing
-                ->where('courier_code', $courierCode)
-                ->first(
-                    fn($item) =>
-                    strtolower($item['courier_service_code']) === strtolower($courierServiceCode)
-                );
-
-            if (!$service) {
-                throw new \Exception('Service pengiriman tidak tersedia');
-            }
-
-            if ((int) $service['price'] !== (int) $shippingPrice) {
-                throw new \Exception('Harga ongkir berubah');
-            }
-
-            $shippingCost = (int) $service['price'];
-
-            // 6️⃣ Total FINAL
-            $total = max(0, $subtotal - $voucherDiscount + $shippingCost);
-
-            // 7️⃣ Create order
+            /**
+             * =========================================
+             * CREATE ORDER
+             * =========================================
+             */
             $order = Order::create([
                 'user_id' => $user->id,
-                'shipping_address_id' => $address->id,
-                'customer_name' => $address->recipient_name,
-                'customer_phone' => $address->phone,
-                'shipping_address_snapshot' => [
-                    'recipient_name' => $address->recipient_name,
-                    'phone' => $address->phone,
-                    'full_address' => $address->full_address,
-                    'province' => $address->province,
-                    'city' => $address->city,
-                    'postal_code' => $address->postal_code,
-                ],
+                'shipping_address_id' => $shippingData['address']->id,
+                'customer_name' => $shippingData['address']->recipient_name,
+                'customer_phone' => $shippingData['address']->phone,
+                'shipping_address_snapshot' => $shippingData['address']->toArray(),
+
                 'order_number' => 'ORD-' . Str::uuid(),
 
                 'subtotal_amount' => $subtotal,
+                'points_used' => $actualPointsUsed,
+                'points_discount' => $pointDiscount,
+                'points_deducted' => false,
+
                 'voucher_id' => $voucher?->id,
                 'voucher_discount' => $voucherDiscount,
+                'voucher_usage_counted' => false,
 
-                'shipping_cost' => $shippingCost,
+                'shipping_cost' => $shippingData['shipping_cost'],
                 'total_amount' => $total,
 
-                'courier' => $courierCode,
-                'courier_service' => strtoupper($courierServiceCode),
+                'courier' => $shippingData['courier_code'],
+                'courier_service' => $shippingData['courier_service_code'],
 
                 'payment_status' => Order::PAYMENT_UNPAID,
                 'status' => Order::STATUS_CREATED,
             ]);
 
-            // 8️⃣ Order items
+            /**
+             * ORDER ITEMS
+             */
             foreach ($cart->items as $cartItem) {
                 $product = $products[$cartItem->product_id];
 
@@ -187,20 +212,84 @@ class OrderService
                 ]);
             }
 
-
-            // 9️⃣ Clear cart
+            /**
+             * CLEAR CART
+             */
             $cart->items()->delete();
-
-
-            // Logging
-            Log::info('Checkout success', [
-                'order_id' => $order->id,
-                'user_id' => $user->id,
-                'total' => $total,
-            ]);
 
             return $order;
         });
+    }
+    public static function validateShippingCost(
+        $user,
+        string $courierCode,
+        string $courierServiceCode,
+        int $shippingPrice
+    ): array {
+
+        $address = Address::where('user_id', $user->id)
+            ->where('is_default', true)
+            ->first();
+
+        if (!$address) {
+            throw new \Exception('Alamat default belum diset');
+        }
+
+        $cart = Cart::where('user_id', $user->id)
+            ->with('items.product')
+            ->firstOrFail();
+
+        if ($cart->items->isEmpty()) {
+            throw new \Exception('Keranjang kosong');
+        }
+
+        $biteshipItems = [];
+
+        foreach ($cart->items as $cartItem) {
+            $product = $cartItem->product;
+
+            $biteshipItems[] = [
+                'name' => $product->name,
+                'value' => (int) $product->price,
+                'quantity' => $cartItem->quantity,
+                'weight' => max(1, (int) $product->weight),
+            ];
+        }
+
+        $rates = BiteshipService::getRates([
+            'origin_area_id' => config('services.biteship.origin'),
+            'destination_area_id' => $address->biteship_location_id,
+            'couriers' => 'jne,jnt,sicepat',
+            'items' => $biteshipItems,
+        ]);
+
+        $pricing = collect($rates['pricing'] ?? []);
+
+        if ($pricing->isEmpty()) {
+            throw new \Exception('Tidak ada pricing dari Biteship');
+        }
+
+        $service = $pricing
+            ->where('courier_code', $courierCode)
+            ->first(
+                fn($item) =>
+                strtolower($item['courier_service_code']) === strtolower($courierServiceCode)
+            );
+
+        if (!$service) {
+            throw new \Exception('Service pengiriman tidak tersedia');
+        }
+
+        if ((int) $service['price'] !== (int) $shippingPrice) {
+            throw new \Exception('Harga ongkir berubah');
+        }
+
+        return [
+            'address' => $address,
+            'shipping_cost' => (int) $service['price'],
+            'courier_code' => $courierCode,
+            'courier_service_code' => strtoupper($courierServiceCode),
+        ];
     }
     public static function retryPayment(Order $order, $user): string
     {

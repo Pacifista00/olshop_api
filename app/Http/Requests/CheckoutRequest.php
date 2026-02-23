@@ -27,6 +27,7 @@ class CheckoutRequest extends FormRequest
             'courier_service_code' => ['required', 'string'],
             'shipping_price' => ['required', 'integer', 'min:0'],
             'voucher_code' => ['nullable', 'string'],
+            'points_used' => ['nullable', 'integer', 'min:0']
         ];
     }
 

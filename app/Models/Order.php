@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Order extends Model
 {
@@ -24,7 +25,7 @@ class Order extends Model
     const PAYMENT_FAILED = 'failed';
     const PAYMENT_EXPIRED = 'expired';
 
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, SoftDeletes;
 
     public $incrementing = false;
     protected $keyType = 'string';
@@ -51,7 +52,10 @@ class Order extends Model
         'shipping_etd',
         'paid_at',
         'midtrans_response',
-        'voucher_usage_counted'
+        'voucher_usage_counted',
+        'points_used',
+        'points_discount',
+        'points_deducted'
     ];
     protected $casts = [
         'total_amount' => 'decimal:2',

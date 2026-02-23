@@ -7,6 +7,8 @@ use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Services\OrderService;
 use App\Services\MidtransService;
+use DB;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
@@ -35,34 +37,102 @@ class OrderController extends Controller
         $user = auth()->user();
 
         try {
-            $order = OrderService::checkoutFromCart(
+
+            /**
+             * =========================================
+             * 1️⃣ VALIDASI ONGKIR (OUTSIDE TX)
+             * =========================================
+             */
+            $shippingData = OrderService::validateShippingCost(
                 $user,
                 $request->courier_code,
                 $request->courier_service_code,
-                $request->shipping_price,
-                $request->voucher_code
+                $request->shipping_price
             );
 
-            $snapToken = MidtransService::createSnapToken([
-                'transaction_details' => [
-                    'order_id' => $order->order_number,
-                    'gross_amount' => (int) $order->total_amount
-                ],
-                'callbacks' => [
-                    'finish' => config('app.frontend_url') . '/after-payment',
-                ],
-                'customer_details' => [
-                    'first_name' => $user->name,
-                    'email' => $user->email
-                ]
-            ]);
+            /**
+             * =========================================
+             * 2️⃣ CREATE ORDER
+             * =========================================
+             */
+            $order = OrderService::checkoutFromCart(
+                $user,
+                $shippingData,
+                $request->voucher_code,
+                (int) ($request->input('points_used') ?? 0)
+            );
 
-            $order->update(['midtrans_snap_token' => $snapToken]);
+            /**
+             * =========================================
+             * ⭐ IDPOTENT SNAP TOKEN CHECK
+             * =========================================
+             */
+            $order = DB::transaction(function () use ($order) {
+                return Order::lockForUpdate()->find($order->id);
+            });
+
+            if ($order->midtrans_snap_token) {
+                return response()->json([
+                    'snapToken' => $order->midtrans_snap_token
+                ]);
+            }
+
+            /**
+             * =========================================
+             * 3️⃣ CREATE SNAP TOKEN (RETRY SAFE)
+             * =========================================
+             */
+            $snapToken = retry(3, function () use ($order, $user) {
+
+                return MidtransService::createSnapToken([
+                    'transaction_details' => [
+                        'order_id' => $order->order_number,
+                        'gross_amount' => (int) $order->total_amount
+                    ],
+                    'callbacks' => [
+                        'finish' => config('app.frontend_url') . '/after-payment',
+                    ],
+                    'customer_details' => [
+                        'first_name' => $user->name,
+                        'email' => $user->email
+                    ]
+                ]);
+
+            }, 200);
+
+            /**
+             * =========================================
+             * 🔒 RETRY SAVE TOKEN (ANTI ORPHAN)
+             * =========================================
+             */
+            retry(3, function () use ($order, $snapToken) {
+
+                DB::transaction(function () use ($order, $snapToken) {
+
+                    $fresh = Order::lockForUpdate()->find($order->id);
+
+                    if (!$fresh->midtrans_snap_token) {
+                        $fresh->update([
+                            'midtrans_snap_token' => $snapToken
+                        ]);
+                    }
+
+                });
+
+            }, 100);
 
             return response()->json(compact('snapToken'));
 
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+
+            Log::error('Checkout error', [
+                'error' => $e->getMessage(),
+                'user_id' => $user->id ?? null
+            ]);
+
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
         }
     }
     public function retry(Order $order)

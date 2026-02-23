@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ProductController extends Controller
@@ -222,8 +223,8 @@ class ProductController extends Controller
 
             // Replace image if uploaded
             if ($request->hasFile('image')) {
-                if ($product->image && file_exists(storage_path('app/public/' . $product->image))) {
-                    unlink(storage_path('app/public/' . $product->image));
+                if ($product->image && Storage::disk('public')->exists($product->image)) {
+                    Storage::disk('public')->delete($product->image);
                 }
 
                 $validated['image'] = $request->file('image')->store('products', 'public');
@@ -277,8 +278,8 @@ class ProductController extends Controller
         try {
 
             // Delete image file
-            if ($product->image && file_exists(storage_path('app/public/' . $product->image))) {
-                unlink(storage_path('app/public/' . $product->image));
+            if ($product->image && Storage::disk('public')->exists($product->image)) {
+                Storage::disk('public')->delete($product->image);
             }
 
             if (!$product->delete()) {

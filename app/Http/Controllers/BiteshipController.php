@@ -77,7 +77,7 @@ class BiteshipController extends Controller
             $rates = BiteshipService::getRates([
                 'origin_area_id' => config('services.biteship.origin'),
                 'destination_area_id' => $address->biteship_location_id,
-                'couriers' => 'jne,jnt,sicepat',
+                'couriers' => 'jne,jnt',
                 'items' => $items,
             ]);
 
