@@ -33,6 +33,7 @@ return [
     'biteship' => [
         'key' => env('BITESHIP_API_KEY'),
         'origin' => env('ORIGIN_AREA_ID'),
+        'base_url' => env('BITESHIP_BASE_URL'),
     ],
 
 ];

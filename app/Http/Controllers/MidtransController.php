@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\CreateShipmentJob;
 use App\Models\MidtransTransaction;
 use App\Models\Order;
 use App\Models\PointHistory;
@@ -210,6 +211,10 @@ class MidtransController extends Controller
                      * ⭐ earn points
                      */
                     PointService::earn($order->user, $order);
+
+                    if (!$order->tracking_number) {
+                        CreateShipmentJob::dispatch($order->id)->afterCommit();
+                    }
                 }
             });
 

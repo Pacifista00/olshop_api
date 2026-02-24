@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Order;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class BiteshipService
 {
@@ -82,5 +84,48 @@ class BiteshipService
         return self::client()
             ->post('https://api.biteship.com/v1/rates/couriers', $payload)
             ->json();
+    }
+    public static function createShipment(Order $order)
+    {
+        $response = Http::withHeaders([
+            'Authorization' => config('services.biteship.key'),
+            'Content-Type' => 'application/json',
+        ])->post(config('services.biteship.base_url') . '/orders', [
+
+                    'reference_id' => $order->order_number,
+
+                    'courier_code' => $order->courier,
+                    'courier_service_code' => $order->courier_service,
+
+                    'origin_contact_name' => 'Nama Toko',
+                    'origin_contact_phone' => '08123456789',
+                    'origin_address' => 'Alamat gudang',
+
+                    'destination_contact_name' => $order->customer_name,
+                    'destination_contact_phone' => $order->customer_phone,
+                    'destination_address' => $order->shipping_address_snapshot['street_address'],
+
+                    'items' => $order->items->map(function ($item) {
+                        return [
+                            'name' => $item->product->name,
+                            'value' => $item->unit_price,
+                            'quantity' => $item->quantity,
+                            'weight' => $item->product->weight ?? 1000,
+                        ];
+                    })->values()->toArray(),
+
+                ]);
+
+        if (!$response->successful()) {
+            Log::error('Biteship error response', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'json' => $response->json(),
+            ]);
+
+            throw new \Exception('Gagal create shipment Biteship: ' . $response->body());
+        }
+
+        return $response->json();
     }
 }

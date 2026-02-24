@@ -55,7 +55,10 @@ class Order extends Model
         'voucher_usage_counted',
         'points_used',
         'points_discount',
-        'points_deducted'
+        'points_deducted',
+        'biteship_order_id',
+        'tracking_number',
+        'shipment_created_at'
     ];
     protected $casts = [
         'total_amount' => 'decimal:2',
