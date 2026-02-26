@@ -14,10 +14,19 @@ class OrderResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $computedStatus = $this->payment_status;
+
+        if (
+            $this->payment_status === 'unpaid' &&
+            $this->expired_at &&
+            now()->greaterThanOrEqualTo($this->expired_at)
+        ) {
+            $computedStatus = 'expired';
+        }
         return [
             'id' => $this->id,
             'order_number' => $this->order_number,
-            'payment_status' => $this->payment_status,
+            'payment_status' => $computedStatus,
 
             'created_at' => $this->created_at?->toISOString(),
             'expired_at' => $this->expired_at?->toISOString(),
