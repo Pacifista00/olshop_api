@@ -12,6 +12,24 @@ use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
+    public function orders()
+    {
+        $orders = Order::with(['items.product'])
+            ->orderByDesc('created_at')
+            ->paginate(10);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'List of orders retrieved successfully.',
+            'data' => OrderResource::collection($orders),
+            'meta' => [
+                'current_page' => $orders->currentPage(),
+                'last_page' => $orders->lastPage(),
+                'per_page' => $orders->perPage(),
+                'total' => $orders->total(),
+            ],
+        ]);
+    }
     public function index()
     {
         $orders = Order::with(['items.product'])
@@ -164,10 +182,17 @@ class OrderController extends Controller
     }
     public function show($id)
     {
-        $order = Order::with(['items.product'])
-            ->where('id', $id)
-            ->where('user_id', auth()->id())
-            ->first();
+        $user = auth()->user();
+
+        $query = Order::with(['items.product'])
+            ->where('id', $id);
+
+        // 🔥 jika bukan admin/developer → batasi
+        if (!in_array($user->role, ['admin', 'developer'])) {
+            $query->where('user_id', $user->id);
+        }
+
+        $order = $query->first();
 
         if (!$order) {
             return response()->json([
@@ -180,6 +205,17 @@ class OrderController extends Controller
             'status' => 'success',
             'message' => 'Detail order retrieved successfully.',
             'data' => new OrderResource($order)
+        ]);
+    }
+    public function pack(Order $order)
+    {
+        $order->update([
+            'status' => Order::STATUS_PACKED
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Order packed successfully'
         ]);
     }
 }

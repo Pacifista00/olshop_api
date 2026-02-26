@@ -26,12 +26,16 @@ class OrderResource extends JsonResource
         return [
             'id' => $this->id,
             'order_number' => $this->order_number,
+            'status' => $this->status,
             'payment_status' => $computedStatus,
 
             'created_at' => $this->created_at?->toISOString(),
             'expired_at' => $this->expired_at?->toISOString(),
             'created_at_formatted' => $this->created_at?->format('d M Y H:i'),
 
+            'points_used' => (int) $this->points_used,
+            'points_discount' => (int) $this->points_discount,
+            'payment_method' => $this->payment_method,
             'subtotal_amount' => (int) $this->subtotal_amount,
             'shipping_cost' => (int) $this->shipping_cost,
             'voucher_discount' => (int) $this->voucher_discount,

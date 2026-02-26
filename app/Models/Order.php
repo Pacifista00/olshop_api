@@ -15,6 +15,7 @@ class Order extends Model
     const STATUS_CREATED = 'created';
     const STATUS_PENDING = 'pending';
     const STATUS_PROCESSING = 'processing';
+    const STATUS_PACKED = 'packed';
     const STATUS_SHIPPED = 'shipped';
     const STATUS_COMPLETED = 'completed';
     const STATUS_CANCELLED = 'cancelled';

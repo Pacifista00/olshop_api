@@ -52,6 +52,7 @@ Route::get('/products/best-seller', [ProductController::class, 'bestSeller']);
 
 Route::post('/midtrans/callback', [MidtransController::class, 'handle']);
 
+
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/me', [ProfileController::class, 'me']);
 
@@ -92,8 +93,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/orders/by-number/{orderNumber}', [OrderController::class, 'showByNumber']);
 
+    Route::get('/orders', [OrderController::class, 'orders']);
     Route::get('/orders/me', [OrderController::class, 'index']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
+    Route::post('/orders/{order}/pack', [OrderController::class, 'pack']);
 
     Route::middleware(['auth:sanctum', 'role:admin,developer'])
         ->prefix('admin')
