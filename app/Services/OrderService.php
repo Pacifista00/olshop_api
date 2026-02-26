@@ -307,7 +307,7 @@ class OrderService
                 throw new \Exception('Order sudah dibayar');
             }
 
-            if ($order->created_at->addHours(1)->isPast()) {
+            if ($order->expired_at && now()->greaterThan($order->expired_at)) {
                 throw new \Exception('Order sudah expired');
             }
 

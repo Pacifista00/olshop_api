@@ -58,7 +58,8 @@ class Order extends Model
         'points_deducted',
         'biteship_order_id',
         'tracking_number',
-        'shipment_created_at'
+        'shipment_created_at',
+        'expired_at',
     ];
     protected $casts = [
         'total_amount' => 'decimal:2',
@@ -67,7 +68,20 @@ class Order extends Model
         'transaction_time' => 'datetime',
         'midtrans_response' => 'array',
         'shipping_address_snapshot' => 'array',
+        'expired_at' => 'datetime',
     ];
+
+    protected static function booted()
+    {
+        static::creating(function ($order) {
+            if (
+                $order->payment_status === self::PAYMENT_UNPAID
+                && empty($order->expired_at)
+            ) {
+                $order->expired_at = now()->addHour(); // ubah kalau mau 2 jam / 24 jam
+            }
+        });
+    }
 
 
 

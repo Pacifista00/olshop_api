@@ -265,6 +265,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Login berhasil',
+            'messages' => $user->email_verified_at,
             'token' => $token,
             'user' => $user,
 

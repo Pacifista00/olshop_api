@@ -20,6 +20,7 @@ class OrderResource extends JsonResource
             'payment_status' => $this->payment_status,
 
             'created_at' => $this->created_at?->toISOString(),
+            'expired_at' => $this->expired_at?->toISOString(),
             'created_at_formatted' => $this->created_at?->format('d M Y H:i'),
 
             'subtotal_amount' => (int) $this->subtotal_amount,
