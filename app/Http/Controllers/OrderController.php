@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Services\OrderService;
 use App\Services\MidtransService;
 use DB;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
@@ -30,16 +31,24 @@ class OrderController extends Controller
             ],
         ]);
     }
-    public function index()
+    public function index(Request $request)
     {
-        $orders = Order::with(['items.product'])
-            ->where('user_id', auth()->id())
-            ->orderByDesc('created_at')
-            ->paginate(10);
+        $query = Order::with(['items.product'])
+            ->where('user_id', auth()->id());
+
+        // ✅ SUPPORT SINGLE & MULTIPLE STATUS
+        if ($request->filled('status')) {
+            $statuses = is_array($request->status)
+                ? $request->status
+                : [$request->status];
+
+            $query->whereIn('status', $statuses);
+        }
+
+        $orders = $query->orderByDesc('created_at')->paginate(10);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'List of orders retrieved successfully.',
             'data' => OrderResource::collection($orders),
             'meta' => [
                 'current_page' => $orders->currentPage(),
