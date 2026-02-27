@@ -248,12 +248,21 @@ class OrderService
         foreach ($cart->items as $cartItem) {
             $product = $cartItem->product;
 
-            $biteshipItems[] = [
+            $payload = [
                 'name' => $product->name,
                 'value' => (int) $product->price,
                 'quantity' => $cartItem->quantity,
                 'weight' => max(1, (int) $product->weight),
             ];
+
+            // 🔥 kirim dimensi hanya jika perlu
+            if (!empty($product->use_dimension)) {
+                $payload['length'] = max(1, (int) $product->length);
+                $payload['width'] = max(1, (int) $product->width);
+                $payload['height'] = max(1, (int) $product->height);
+            }
+
+            $biteshipItems[] = $payload;
         }
 
         $rates = BiteshipService::getRates([

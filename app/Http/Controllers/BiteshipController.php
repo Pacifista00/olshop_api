@@ -57,15 +57,26 @@ class BiteshipController extends Controller
 
             foreach ($cart->items as $item) {
                 if (!$item->product) {
-                    continue; // skip produk rusak
+                    continue;
                 }
 
-                $items[] = [
-                    'name' => $item->product->name,
-                    'value' => (int) $item->product->price,
+                $product = $item->product;
+
+                $payload = [
+                    'name' => $product->name,
+                    'value' => (int) $product->price,
                     'quantity' => $item->quantity,
-                    'weight' => max(1, (int) $item->product->weight),
+                    'weight' => max(1, (int) $product->weight),
                 ];
+
+                // 🔥 kirim dimensi HANYA jika produk bulky
+                if (!empty($product->use_dimension)) {
+                    $payload['length'] = max(1, (int) $product->length);
+                    $payload['width'] = max(1, (int) $product->width);
+                    $payload['height'] = max(1, (int) $product->height);
+                }
+
+                $items[] = $payload;
             }
 
             if (empty($items)) {

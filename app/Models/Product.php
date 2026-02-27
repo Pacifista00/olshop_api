@@ -30,7 +30,8 @@ class Product extends Model
         'length',
         'width',
         'height',
-        'reserved_stock'
+        'reserved_stock',
+        'use_dimension'
     ];
 
 

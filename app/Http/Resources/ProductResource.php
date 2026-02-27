@@ -22,6 +22,7 @@ class ProductResource extends JsonResource
             'price' => (int) $this->price,
             'stock' => (int) $this->stock,
             'weight' => (int) $this->weight,
+            'use_dimension' => $this->use_dimension,
 
             'dimension' => [
                 'length' => $this->length,

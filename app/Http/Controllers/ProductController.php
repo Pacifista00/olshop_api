@@ -145,6 +145,7 @@ class ProductController extends Controller
             'stock' => 'required|integer|min:0',
             'image' => 'nullable|image|max:2048',
             'is_active' => 'boolean',
+            'use_dimension' => 'boolean',
             'weight' => 'nullable|numeric|min:0',
             'length' => 'nullable|numeric|min:0',
             'width' => 'nullable|numeric|min:0',
@@ -174,6 +175,7 @@ class ProductController extends Controller
                 'length' => $validated['length'] ?? null,
                 'width' => $validated['width'] ?? null,
                 'height' => $validated['height'] ?? null,
+                'use_dimension' => $validated['use_dimension'] ?? 0,
             ]);
 
             if (!$product) {
@@ -211,6 +213,7 @@ class ProductController extends Controller
             'stock' => 'sometimes|integer|min:0',
             'image' => 'sometimes|image|max:2048',
             'is_active' => 'boolean',
+            'use_dimension' => 'boolean',
             'weight' => 'nullable|numeric|min:0',
             'length' => 'nullable|numeric|min:0',
             'width' => 'nullable|numeric|min:0',
@@ -244,6 +247,7 @@ class ProductController extends Controller
                 'length' => $validated['length'] ?? null,
                 'width' => $validated['width'] ?? null,
                 'height' => $validated['height'] ?? null,
+                'use_dimension' => $validated['use_dimension'] ?? 0,
             ]);
 
             if (!$updated) {
