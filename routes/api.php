@@ -71,9 +71,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::put('/category/update/{category}', [CategoryController::class, 'update']);
     Route::delete('/category/delete/{category}', [CategoryController::class, 'destroy']);
 
-    Route::post('/product/store', [ProductController::class, 'store']);
-    Route::put('/product/update/{product}', [ProductController::class, 'update']);
-    Route::delete('/product/delete/{product}', [ProductController::class, 'destroy']);
+
 
     Route::get('/cart', [CartController::class, 'index']);
     Route::post('/cart/store', [CartController::class, 'store']);
@@ -104,6 +102,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
             Route::put('/users/{user}/update', [UserManagementController::class, 'update']);
             Route::put('/users/photo/{user}/update', [UserManagementController::class, 'updatePhoto']);
+
+            Route::get('/products', [ProductController::class, 'adminIndex']);
+            Route::get('/product/{id}', [ProductController::class, 'getAdminProduct']);
+            Route::post('/product/store', [ProductController::class, 'store']);
+            Route::put('/product/update/{product}', [ProductController::class, 'update']);
+            Route::delete('/product/delete/{product}', [ProductController::class, 'destroy']);
 
 
         });
