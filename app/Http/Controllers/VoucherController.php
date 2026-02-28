@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 class VoucherController extends Controller
 {
     // GET /vouchers
-    public function index()
+    public function adminIndex()
     {
         $vouchers = Voucher::orderByDesc('created_at')->paginate(12);
 
@@ -29,10 +29,11 @@ class VoucherController extends Controller
             ],
         ], 200);
     }
-    public function publicIndex()
+    public function index()
     {
         $vouchers = Voucher::where('visibility', 'public')
             ->orderByDesc('created_at')
+            ->where('is_active', 1)
             ->paginate(12);
 
 
@@ -51,6 +52,16 @@ class VoucherController extends Controller
 
 
     public function getVoucher($id)
+    {
+        $voucher = Voucher::where('visibility', 'public')->where('is_active', 1)->findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Voucher retrieved successfully.',
+            'data' => new VoucherResource($voucher)
+        ], 200);
+    }
+    public function getAdminVoucher($id)
     {
         $voucher = Voucher::findOrFail($id);
 
@@ -134,6 +145,13 @@ class VoucherController extends Controller
     // GET /vouchers/{voucher}
     public function show(Voucher $voucher)
     {
+        if (!$voucher->is_active) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Voucher not found.',
+            ], 404);
+        }
+
         return response()->json([
             'status' => 'success',
             'message' => 'Voucher retrieved successfully.',

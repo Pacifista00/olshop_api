@@ -42,8 +42,7 @@ Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/home-products', [ProductController::class, 'homeProducts']);
-Route::get('/vouchers', [VoucherController::class, 'publicIndex']);
-Route::get('/vouchers-admin', [VoucherController::class, 'index']);
+Route::get('/vouchers', [VoucherController::class, 'index']);
 Route::get('/product/{id}', [ProductController::class, 'getProduct']);
 Route::get('/category/{id}', [CategoryController::class, 'getCategory']);
 Route::get('/voucher/{id}', [VoucherController::class, 'getVoucher']);
@@ -71,16 +70,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::put('/category/update/{category}', [CategoryController::class, 'update']);
     Route::delete('/category/delete/{category}', [CategoryController::class, 'destroy']);
 
-
-
     Route::get('/cart', [CartController::class, 'index']);
     Route::post('/cart/store', [CartController::class, 'store']);
     Route::put('/cart/update/{cartItem}', [CartController::class, 'update']);
     Route::delete('/cart/delete/{cartItem}', [CartController::class, 'destroy']);
 
-    Route::post('/voucher/store', [VoucherController::class, 'store']);
-    Route::put('/voucher/update/{voucher}', [VoucherController::class, 'update']);
-    Route::delete('/voucher/delete/{voucher}', [VoucherController::class, 'destroy']);
     Route::get('/voucher/show/{voucher}', [VoucherController::class, 'show']);
     Route::post('/voucher/preview', [VoucherController::class, 'preview']);
 
@@ -108,6 +102,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
             Route::post('/product/store', [ProductController::class, 'store']);
             Route::put('/product/update/{product}', [ProductController::class, 'update']);
             Route::delete('/product/delete/{product}', [ProductController::class, 'destroy']);
+
+            Route::get('/vouchers', [VoucherController::class, 'adminIndex']);
+            Route::get('/voucher/{id}', [VoucherController::class, 'getAdminVoucher']);
+            Route::post('/voucher/store', [VoucherController::class, 'store']);
+            Route::put('/voucher/update/{voucher}', [VoucherController::class, 'update']);
+            Route::delete('/voucher/delete/{voucher}', [VoucherController::class, 'destroy']);
 
 
         });
