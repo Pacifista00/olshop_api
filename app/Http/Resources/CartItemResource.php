@@ -21,6 +21,7 @@ class CartItemResource extends JsonResource
             'price' => $this->product->price ?? 0,
             'quantity' => $this->quantity,
             'image' => $this->product->image,
+            'is_active' => $this->product->is_active,
             'subtotal' => ($this->product->price ?? 0) * $this->quantity,
         ];
     }

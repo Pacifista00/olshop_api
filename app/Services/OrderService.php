@@ -26,8 +26,18 @@ class OrderService
 
         return DB::transaction(function () use ($user, $shippingData, $voucherCode, $pointsUsed) {
 
-            if (empty($shippingData['address'])) {
+            if (
+                empty($shippingData['address']) ||
+                !is_object($shippingData['address'])
+            ) {
                 throw new \Exception('Alamat tidak valid');
+            }
+            if (
+                !isset($shippingData['shipping_cost']) ||
+                !is_numeric($shippingData['shipping_cost']) ||
+                $shippingData['shipping_cost'] < 0
+            ) {
+                throw new \Exception('Ongkir tidak valid');
             }
 
             $cart = Cart::where('user_id', $user->id)
@@ -64,12 +74,27 @@ class OrderService
              * =========================================
              */
             $subtotal = 0;
-            $products = [];
 
-            foreach ($cart->items as $cartItem) {
+            /** 🔒 lock semua product SEKALI */
+            $productIds = $cart->items
+                ->pluck('product_id')
+                ->sort()
+                ->values();
 
-                $product = Product::lockForUpdate()
-                    ->findOrFail($cartItem->product_id);
+            $products = Product::whereIn('id', $productIds)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            foreach ($cart->items->sortBy('product_id') as $cartItem) {
+
+                $product = $products[$cartItem->product_id] ?? null;
+
+                $productName = $product->name ?? 'Produk';
+
+                if (!$product || !$product->is_active) {
+                    throw new \Exception("{$productName} sudah tidak tersedia");
+                }
 
                 $availableStock = $product->stock - $product->reserved_stock;
 
@@ -79,7 +104,6 @@ class OrderService
 
                 $product->increment('reserved_stock', $cartItem->quantity);
 
-                $products[$product->id] = $product;
                 $subtotal += $product->price * $cartItem->quantity;
             }
 
@@ -124,6 +148,8 @@ class OrderService
                 if ($voucher->max_discount) {
                     $voucherDiscount = min($voucherDiscount, $voucher->max_discount);
                 }
+
+                $voucherDiscount = min($voucherDiscount, $subtotal);
             }
 
             /**
@@ -200,7 +226,7 @@ class OrderService
             /**
              * ORDER ITEMS
              */
-            foreach ($cart->items as $cartItem) {
+            foreach ($cart->items->sortBy('product_id') as $cartItem) {
                 $product = $products[$cartItem->product_id];
 
                 OrderItem::create([
@@ -237,6 +263,7 @@ class OrderService
 
         $cart = Cart::where('user_id', $user->id)
             ->with('items.product')
+            ->lockForUpdate()
             ->firstOrFail();
 
         if ($cart->items->isEmpty()) {
@@ -245,7 +272,7 @@ class OrderService
 
         $biteshipItems = [];
 
-        foreach ($cart->items as $cartItem) {
+        foreach ($cart->items->sortBy('product_id') as $cartItem) {
             $product = $cartItem->product;
 
             $payload = [
@@ -302,48 +329,104 @@ class OrderService
     }
     public static function retryPayment(Order $order, $user): string
     {
-        return DB::transaction(function () use ($order, $user) {
+        /**
+         * =========================================================
+         * STEP 1 — LOCK & DECIDE (TRANSACTION CEPAT)
+         * =========================================================
+         */
+        $result = DB::transaction(function () use ($order, $user) {
 
             $order = Order::where('id', $order->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            // 🔒 ownership check
             if ($order->user_id !== $user->id) {
                 throw new \Exception('Order tidak ditemukan');
             }
 
+            // 🔒 status check
             if ($order->payment_status !== Order::PAYMENT_UNPAID) {
                 throw new \Exception('Order sudah dibayar');
             }
 
+            // 🔒 expired check
             if ($order->expired_at && now()->greaterThan($order->expired_at)) {
                 throw new \Exception('Order sudah expired');
             }
 
-            // ✅ Idempotent: kalau sudah ada token, return saja
+            // ✅ idempotent — token sudah ada
             if ($order->midtrans_snap_token) {
-                return $order->midtrans_snap_token;
+                return [
+                    'need_create' => false,
+                    'token' => $order->midtrans_snap_token,
+                    'order_id' => $order->id,
+                ];
             }
 
-            // Generate token
+            // ✅ perlu generate token baru
+            return [
+                'need_create' => true,
+                'token' => null,
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'gross_amount' => (int) $order->total_amount,
+                'customer_name' => $order->customer_name,
+                'customer_email' => $user->email,
+            ];
+        });
+
+        /**
+         * =========================================================
+         * STEP 2 — JIKA TOKEN SUDAH ADA (FAST RETURN)
+         * =========================================================
+         */
+        if (!$result['need_create']) {
+            return $result['token'];
+        }
+
+        /**
+         * =========================================================
+         * STEP 3 — CALL MIDTRANS (DI LUAR TRANSACTION) ✅
+         * =========================================================
+         */
+        try {
             $snapToken = MidtransService::createSnapToken([
                 'transaction_details' => [
-                    'order_id' => $order->order_number,
-                    'gross_amount' => (int) $order->total_amount
+                    'order_id' => $result['order_number'],
+                    'gross_amount' => $result['gross_amount'],
                 ],
                 'customer_details' => [
-                    'first_name' => $order->customer_name,
-                    'email' => $user->email
-                ]
+                    'first_name' => $result['customer_name'],
+                    'email' => $result['customer_email'],
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Midtrans snap failed', [
+                'order_id' => $result['order_id'],
+                'error' => $e->getMessage(),
             ]);
 
-            $order->update([
-                'midtrans_snap_token' => $snapToken
+            throw new \Exception('Gagal membuat pembayaran');
+        }
+
+        /**
+         * =========================================================
+         * STEP 4 — SAVE TOKEN (SAFE UPDATE)
+         * =========================================================
+         */
+        Order::where('id', $result['order_id'])
+            ->whereNull('midtrans_snap_token') // 🔥 anti race extra safety
+            ->update([
+                'midtrans_snap_token' => $snapToken,
             ]);
 
-            return $snapToken;
-        });
+        /**
+         * =========================================================
+         * STEP 5 — RETURN TOKEN
+         * =========================================================
+         */
+        return $snapToken;
     }
-
 
 }

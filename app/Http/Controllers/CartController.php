@@ -6,8 +6,10 @@ use App\Http\Resources\CartItemResource;
 use App\Http\Resources\CartResource;
 use App\Models\Cart;
 use App\Models\CartItem;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class CartController extends Controller
 {
@@ -29,52 +31,63 @@ class CartController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'product_id' => 'required|exists:products,id',
+            'product_id' => [
+                'required',
+                Rule::exists('products', 'id')->where(fn($q) => $q->where('is_active', 1)),
+            ],
             'quantity' => 'required|integer|min:1'
         ]);
 
-        DB::beginTransaction();
-        try {
-            // ✅ Ambil / Buat cart
+        return DB::transaction(function () use ($request, $validated) {
+
+            // 🔒 Lock product row
+            $product = Product::where('id', $validated['product_id'])
+                ->where('is_active', 1)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            // ✅ Ambil / buat cart
             $cart = Cart::firstOrCreate([
                 'user_id' => $request->user()->id
             ]);
 
-            // ✅ Jika produk sudah ada → update qty
+            // ✅ Ambil item jika sudah ada
             $item = CartItem::where('cart_id', $cart->id)
                 ->where('product_id', $validated['product_id'])
+                ->lockForUpdate()
                 ->first();
 
+            $currentQty = $item?->quantity ?? 0;
+            $requestedQty = $validated['quantity'];
+            $newQty = $currentQty + $requestedQty;
+
+            // ❌ Jika melebihi stok
+            if ($newQty > $product->stock) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Quantity melebihi stok tersedia.',
+                    'available_stock' => $product->stock,
+                    'current_in_cart' => $currentQty
+                ], 422);
+            }
+
+            // ✅ Update atau create item
             if ($item) {
-                $item->update([
-                    'quantity' => $item->quantity + $validated['quantity']
-                ]);
+                $item->increment('quantity', $requestedQty);
             } else {
                 CartItem::create([
                     'cart_id' => $cart->id,
                     'product_id' => $validated['product_id'],
-                    'quantity' => $validated['quantity']
+                    'quantity' => $requestedQty
                 ]);
             }
-
-            DB::commit();
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Product added to cart.',
                 'data' => new CartResource($cart->load('items.product'))
             ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to add product to cart.',
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ], 500);
-        }
+        });
     }
 
     // ✅ UPDATE quantity
@@ -84,28 +97,47 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:1'
         ]);
 
-        DB::beginTransaction();
-        try {
-            $cartItem->update([
-                'quantity' => $validated['quantity']
-            ]);
+        return DB::transaction(function () use ($request, $validated, $cartItem) {
 
-            DB::commit();
+            // 🔒 Ambil + filter ownership SEKALIGUS
+            $cartItem = CartItem::where('id', $cartItem->id)
+                ->whereHas('cart', fn($q) => $q->where('user_id', $request->user()->id))
+                ->lockForUpdate()
+                ->first();
+
+            if (!$cartItem) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized access to cart item.'
+                ], 403);
+            }
+
+            // 🔒 Lock product
+            $product = Product::where('id', $cartItem->product_id)
+                ->where('is_active', 1)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $requestedQty = $validated['quantity'];
+
+            if ($requestedQty > $product->stock) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Quantity melebihi stok tersedia.',
+                    'available_stock' => $product->stock
+                ], 422);
+            }
+
+            $cartItem->update([
+                'quantity' => $requestedQty
+            ]);
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Cart item updated successfully.',
-                'data' => new CartItemResource($cartItem)
+                'data' => new CartItemResource($cartItem->load('product'))
             ], 200);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to update cart item.'
-            ], 500);
-        }
+        });
     }
 
     // ✅ DELETE 1 item
