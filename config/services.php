@@ -13,6 +13,9 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
+    'app' => [
+        'url' => env('APP_URL'),
+    ],
 
     'mailgun' => [
         'domain' => env('MAILGUN_DOMAIN'),
@@ -34,6 +37,9 @@ return [
         'key' => env('BITESHIP_API_KEY'),
         'origin' => env('ORIGIN_AREA_ID'),
         'base_url' => env('BITESHIP_BASE_URL'),
+    ],
+    'brevo' => [
+        'key' => env('BREVO_API_KEY'),
     ],
 
 ];

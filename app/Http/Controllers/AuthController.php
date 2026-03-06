@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendOtpEmailJob;
 use App\Mail\OtpMail;
 use App\Models\Otp;
 use App\Models\User;
@@ -62,7 +63,7 @@ class AuthController extends Controller
 
             // 5. Kirim email OTP
             try {
-                Mail::to($user->email)->queue(new OtpMail($otp));
+                SendOtpEmailJob::dispatch($user->email, $user->name, $otp);
             } catch (\Exception $e) {
                 // rollback user & otp
                 DB::rollBack();
@@ -208,7 +209,7 @@ class AuthController extends Controller
             DB::commit();
 
             try {
-                Mail::to($user->email)->queue(new OtpMail($otpCode));
+                SendOtpEmailJob::dispatch($user->email, $user->name, $otpCode);
             } catch (\Exception $e) {
                 return response()->json([
                     'success' => false,

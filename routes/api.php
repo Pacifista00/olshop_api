@@ -15,6 +15,29 @@ use App\Http\Controllers\ProductController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/test-email', function () {
+    $response = Http::withHeaders([
+        'accept' => 'application/json',
+        'api-key' => env('BREVO_API_KEY'),
+        'content-type' => 'application/json',
+    ])->post('https://api.brevo.com/v3/smtp/email', [
+                "sender" => [
+                    "name" => "WawaNet",
+                    "email" => "warungnyawarganet@gmail.com"
+                ],
+                "to" => [
+                    [
+                        "email" => "adamsamudera99@gmail.com",
+                        "name" => "Test"
+                    ]
+                ],
+                "subject" => "Test Email",
+                "htmlContent" => "<h1>Email dari Laravel + Brevo API</h1>"
+            ]);
+
+    return $response->body();
+});
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
