@@ -15,7 +15,7 @@ class BrevoService
         ])->post('https://api.brevo.com/v3/smtp/email', [
                     "sender" => [
                         "name" => "WawaNet",
-                        "email" => "noreply@wawanet.com"
+                        "email" => "noreply@wawanet.co.id"
                     ],
                     "to" => [
                         [
@@ -26,5 +26,7 @@ class BrevoService
                     "subject" => $subject,
                     "htmlContent" => $html
                 ]);
+
     }
+
 }
