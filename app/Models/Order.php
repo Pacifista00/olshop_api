@@ -60,6 +60,7 @@ class Order extends Model
         'biteship_order_id',
         'tracking_number',
         'shipment_created_at',
+        'shipment_response',
         'expired_at',
     ];
     protected $casts = [
@@ -70,6 +71,7 @@ class Order extends Model
         'midtrans_response' => 'array',
         'shipping_address_snapshot' => 'array',
         'expired_at' => 'datetime',
+        'shipment_response' => 'array',
     ];
 
     protected static function booted()

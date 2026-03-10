@@ -37,6 +37,16 @@ return [
         'key' => env('BITESHIP_API_KEY'),
         'origin' => env('ORIGIN_AREA_ID'),
         'base_url' => env('BITESHIP_BASE_URL'),
+
+        'shipper_name' => env('BITESHIP_SHIPPER_NAME'),
+        'shipper_phone' => env('BITESHIP_SHIPPER_PHONE'),
+        'shipper_email' => env('BITESHIP_SHIPPER_EMAIL'),
+        'shipper_organization' => env('BITESHIP_SHIPPER_ORGANIZATION'),
+
+        'origin_name' => env('BITESHIP_ORIGIN_NAME'),
+        'origin_phone' => env('BITESHIP_ORIGIN_PHONE'),
+        'origin_address' => env('BITESHIP_ORIGIN_ADDRESS'),
+        'origin_postal_code' => env('BITESHIP_ORIGIN_POSTAL_CODE'),
     ],
     'brevo' => [
         'key' => env('BREVO_API_KEY'),

@@ -37,8 +37,9 @@ class CreateShipmentJob implements ShouldQueue
 
             // idempotent guard
             if (
+                $order->payment_status !== Order::PAYMENT_PAID ||
                 $order->tracking_number ||
-                $order->payment_status !== Order::PAYMENT_PAID
+                $order->biteship_order_id
             ) {
                 DB::commit();
                 return;
@@ -46,11 +47,12 @@ class CreateShipmentJob implements ShouldQueue
 
             $shipment = BiteshipService::createShipment($order);
 
-            $trackingNumber = data_get($shipment, 'courier.tracking_number');
+            $trackingNumber = data_get($shipment, 'courier.waybill_id');
 
             $order->update([
                 'biteship_order_id' => $shipment['id'] ?? null,
                 'tracking_number' => $trackingNumber,
+                'shipment_response' => $shipment,
                 'shipment_created_at' => now(),
                 'status' => $trackingNumber
                     ? Order::STATUS_SHIPPED

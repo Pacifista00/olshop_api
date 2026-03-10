@@ -87,33 +87,48 @@ class BiteshipService
     }
     public static function createShipment(Order $order)
     {
-        $response = Http::withHeaders([
-            'Authorization' => config('services.biteship.key'),
+        Log::info('Biteship courier debug', [
+            'courier_db' => $order->courier,
+            'service_db' => $order->courier_service,
+            'courier_sent' => trim(strtolower($order->courier)),
+            'service_sent' => trim(strtolower($order->courier_service)),
+        ]);
+        $response = Http::timeout(30)->withHeaders([
+            'Authorization' => 'Bearer ' . config('services.biteship.key'),
             'Content-Type' => 'application/json',
         ])->post(config('services.biteship.base_url') . '/orders', [
 
                     'reference_id' => $order->order_number,
 
-                    'courier_code' => $order->courier,
-                    'courier_service_code' => $order->courier_service,
+                    'shipper_contact_name' => config('services.biteship.shipper_name'),
+                    'shipper_contact_phone' => config('services.biteship.shipper_phone'),
+                    'shipper_contact_email' => config('services.biteship.shipper_email'),
+                    'shipper_organization' => config('services.biteship.shipper_organization'),
 
-                    'origin_contact_name' => 'Nama Toko',
-                    'origin_contact_phone' => '08123456789',
-                    'origin_address' => 'Alamat gudang',
+                    'origin_contact_name' => config('services.biteship.origin_name'),
+                    'origin_contact_phone' => config('services.biteship.origin_phone'),
+                    'origin_address' => config('services.biteship.origin_address'),
+                    'origin_postal_code' => config('services.biteship.origin_postal_code'),
 
                     'destination_contact_name' => $order->customer_name,
                     'destination_contact_phone' => $order->customer_phone,
                     'destination_address' => $order->shipping_address_snapshot['street_address'],
+                    'destination_postal_code' => $order->shipping_address_snapshot['postal_code'],
+
+                    'courier_company' => strtolower($order->courier),
+                    'courier_type' => strtolower($order->courier_service),
+
+                    'delivery_type' => 'now',
 
                     'items' => $order->items->map(function ($item) {
                         return [
                             'name' => $item->product->name,
+                            'description' => $item->product->name,
                             'value' => $item->unit_price,
                             'quantity' => $item->quantity,
                             'weight' => $item->product->weight ?? 1000,
                         ];
                     })->values()->toArray(),
-
                 ]);
 
         if (!$response->successful()) {
