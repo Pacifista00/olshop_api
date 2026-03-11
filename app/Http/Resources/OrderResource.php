@@ -27,6 +27,8 @@ class OrderResource extends JsonResource
             'id' => $this->id,
             'order_number' => $this->order_number,
             'status' => $this->status,
+            'shipping_status' => $this->shipping_status,
+            'tracking_number' => $this->tracking_number,
             'payment_status' => $computedStatus,
 
             'created_at' => $this->created_at?->toISOString(),

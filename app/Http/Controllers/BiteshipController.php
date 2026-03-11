@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Address;
 use App\Models\Cart;
+use App\Models\Order;
 use App\Services\BiteshipService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class BiteshipController extends Controller
 {
@@ -101,6 +104,164 @@ class BiteshipController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+    public function handle(Request $request)
+    {
+        $payload = $request->all();
+
+        $event = $request->input('event');
+        $orderId = $request->input('order_id');
+        $status = $request->input('status');
+
+        Log::info('Biteship webhook', [
+            'order_id' => $orderId,
+            'status' => $status
+        ]);
+
+        if ($event !== 'order.status') {
+            return response()->json(['message' => 'Event ignored']);
+        }
+
+        if (!$orderId || !$status) {
+            return response()->json(['message' => 'Invalid payload'], 400);
+        }
+
+        $order = Order::where('biteship_order_id', $orderId)->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
+
+        if ($order->shipping_status === Order::SHIPPING_DELIVERED) {
+            return response()->json(['message' => 'Already delivered']);
+        }
+
+        DB::transaction(function () use ($order, $request, $payload, $status) {
+
+            $data = [
+                'tracking_number' => $request->input('courier_waybill_id'),
+                'courier' => $request->input('courier_company'),
+                'courier_service' => $request->input('courier_type'),
+                'shipping_status' => $status,
+                'shipment_response' => $payload,
+            ];
+
+            $statusMap = [
+                'cancelled' => Order::STATUS_CANCELLED,
+                'delivered' => Order::STATUS_COMPLETED,
+                'returned' => Order::STATUS_RETURNED,
+                'disposed' => Order::STATUS_DISPOSED,
+            ];
+
+            if (isset($statusMap[$status])) {
+                $data['status'] = $statusMap[$status];
+            }
+
+            $order->update($data);
+        });
+
+        return response()->json(['success' => true]);
+    }
+    public function handleWaybill(Request $request)
+    {
+        $event = $request->input('event');
+        $orderId = $request->input('order_id');
+        $waybill = $request->input('courier_waybill_id');
+
+        if (!$event) {
+            return response()->json(['ok' => true]);
+        }
+
+        if ($event !== 'order.waybill_id') {
+            return response()->json(['message' => 'Event ignored']);
+        }
+
+        if (!$orderId) {
+            return response()->json(['message' => 'Invalid payload'], 400);
+        }
+
+        Log::info('Biteship waybill webhook', [
+            'order_id' => $orderId,
+            'waybill' => $waybill
+        ]);
+
+        DB::transaction(function () use ($orderId, $request, $waybill) {
+
+            $order = Order::where('biteship_order_id', $orderId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$order) {
+                return;
+            }
+
+            // idempotent guard
+            if ($order->tracking_number === $waybill) {
+                return;
+            }
+
+            $order->update([
+                'tracking_number' => $waybill,
+                'shipping_status' => $request->input('status'),
+                'shipment_response' => $request->all(),
+            ]);
+        });
+
+        return response()->json(['success' => true]);
+    }
+    public function handlePrice(Request $request)
+    {
+        $event = $request->input('event');
+        $orderId = $request->input('order_id');
+
+        if (!$event) {
+            return response()->json(['ok' => true]);
+        }
+
+        if ($event !== 'order.price') {
+            return response()->json(['message' => 'Event ignored']);
+        }
+
+        if (!$orderId) {
+            return response()->json(['message' => 'Invalid payload'], 400);
+        }
+
+        $order = Order::where('biteship_order_id', $orderId)->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
+
+        if ($order->status === Order::STATUS_COMPLETED) {
+            return response()->json(['message' => 'Order completed']);
+        }
+
+        $price = (int) $request->input('price');
+
+        Log::info('Biteship price webhook', [
+            'order_id' => $orderId,
+            'price' => $price
+        ]);
+
+        DB::transaction(function () use ($order, $request, $price) {
+
+            $order = Order::lockForUpdate()->find($order->id);
+
+            // idempotent guard
+            if ($order->shipping_cost == $price) {
+                return;
+            }
+
+            $order->update([
+                'shipping_cost' => $price,
+                'tracking_number' => $request->input('courier_waybill_id'),
+                'shipping_status' => $request->input('status'),
+                'shipment_response' => $request->all(),
+            ]);
+
+        });
+
+        return response()->json(['success' => true]);
     }
 
 }

@@ -19,6 +19,21 @@ class Order extends Model
     const STATUS_SHIPPED = 'shipped';
     const STATUS_COMPLETED = 'completed';
     const STATUS_CANCELLED = 'cancelled';
+    const STATUS_RETURNED = 'returned';
+    const STATUS_DISPOSED = 'disposed';
+
+    // shipping status dari biteship
+    const SHIPPING_ALLOCATED = 'allocated';
+    const SHIPPING_PICKING_UP = 'picking_up';
+    const SHIPPING_PICKED = 'picked';
+    const SHIPPING_DROPPING_OFF = 'dropping_off';
+    const SHIPPING_ON_HOLD = 'on_hold';
+    const SHIPPING_RETURN_IN_TRANSIT = 'return_in_transit';
+    const SHIPPING_RETURNED = 'returned';
+    const SHIPPING_DISPOSED = 'disposed';
+    const SHIPPING_DELIVERED = 'delivered';
+    const SHIPPING_COURIER_NOT_FOUND = 'courier_not_found';
+
 
     const PAYMENT_UNPAID = 'unpaid';
     const PAYMENT_PENDING = 'pending';
@@ -45,6 +60,7 @@ class Order extends Model
         'midtrans_transaction_id',
         'midtrans_snap_token',
         'status',
+        'shipping_status',
         'payment_status',
         'payment_method',
         'transaction_time',

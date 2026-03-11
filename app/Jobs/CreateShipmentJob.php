@@ -54,9 +54,7 @@ class CreateShipmentJob implements ShouldQueue
                 'tracking_number' => $trackingNumber,
                 'shipment_response' => $shipment,
                 'shipment_created_at' => now(),
-                'status' => $trackingNumber
-                    ? Order::STATUS_SHIPPED
-                    : Order::STATUS_PROCESSING,
+                'status' => Order::STATUS_PROCESSING,
             ]);
 
             DB::commit();

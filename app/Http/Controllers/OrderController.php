@@ -36,13 +36,72 @@ class OrderController extends Controller
         $query = Order::with(['items.product'])
             ->where('user_id', auth()->id());
 
-        // ✅ SUPPORT SINGLE & MULTIPLE STATUS
-        if ($request->filled('status')) {
-            $statuses = is_array($request->status)
-                ? $request->status
-                : [$request->status];
+        $status = $request->status;
 
-            $query->whereIn('status', $statuses);
+        $statusMap = [
+
+            'created' => [
+                'order' => ['created'],
+                'shipping' => []
+            ],
+
+            'packed' => [
+                'order' => ['processing', 'packed'],
+                'shipping' => []
+            ],
+
+            'shipped' => [
+                'order' => [],
+                'shipping' => [
+                    'allocated',
+                    'picking_up',
+                    'picked',
+                    'on_hold',
+                    'return_in_transit',
+                    'dropping_off'
+                ]
+            ],
+
+            'completed' => [
+                'order' => [],
+                'shipping' => [
+                    'delivered',
+                    'returned',
+                    'disposed',
+                    'courier_not_found',
+                    'cancelled'
+                ]
+            ]
+        ];
+
+        if ($status && $status !== 'all' && isset($statusMap[$status])) {
+
+            $orderStatuses = $statusMap[$status]['order'];
+            $shippingStatuses = $statusMap[$status]['shipping'];
+
+            $query->where(function ($q) use ($orderStatuses, $shippingStatuses, $status) {
+
+                // CREATED
+                if ($status === 'created') {
+                    $q->whereIn('status', $orderStatuses);
+                }
+
+                // PACKED (belum ada shipping)
+                elseif ($status === 'packed') {
+                    $q->whereIn('status', $orderStatuses)
+                        ->whereNull('shipping_status');
+                }
+
+                // SHIPPED
+                elseif ($status === 'shipped') {
+                    $q->whereIn('shipping_status', $shippingStatuses);
+                }
+
+                // COMPLETED
+                elseif ($status === 'completed') {
+                    $q->whereIn('shipping_status', $shippingStatuses);
+                }
+            });
         }
 
         $orders = $query->orderByDesc('created_at')->paginate(10);

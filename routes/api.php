@@ -73,6 +73,9 @@ Route::get('/products/latest', [ProductController::class, 'latest']);
 Route::get('/products/best-seller', [ProductController::class, 'bestSeller']);
 
 Route::post('/midtrans/callback', [MidtransController::class, 'handle']);
+Route::post('/biteship/webhook', [BiteshipController::class, 'handle']);
+Route::post('/biteship/webhook-waybill', [BiteshipController::class, 'handleWaybill']);
+Route::post('/biteship/webhook-price', [BiteshipController::class, 'handlePrice']);
 
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
