@@ -207,7 +207,11 @@ class OrderController extends Controller
 
             }, 100);
 
-            return response()->json(compact('snapToken'));
+            return response()->json([
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'snapToken' => $snapToken
+            ]);
 
         } catch (\Throwable $e) {
 
