@@ -391,7 +391,8 @@ class OrderService
          * =========================================================
          */
         try {
-            $snapToken = MidtransService::createSnapToken([
+
+            $payload = [
                 'transaction_details' => [
                     'order_id' => $result['order_number'],
                     'gross_amount' => $result['gross_amount'],
@@ -400,7 +401,12 @@ class OrderService
                     'first_name' => $result['customer_name'],
                     'email' => $result['customer_email'],
                 ],
-            ]);
+            ];
+
+            Log::info('MIDTRANS PAYLOAD', $payload);
+
+            $snapToken = MidtransService::createSnapToken($payload);
+
         } catch (\Throwable $e) {
             Log::error('Midtrans snap failed', [
                 'order_id' => $result['order_id'],
