@@ -6,6 +6,7 @@ use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -81,6 +82,14 @@ class CategoryController extends Controller
 
             DB::rollBack();
 
+            Log::error('Gagal membuat kategori', [
+                'error_message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+                'icon_path' => $iconPath,
+                'user_id' => optional($request->user())->id
+            ]);
+
             if ($iconPath && Storage::disk('public')->exists($iconPath)) {
                 Storage::disk('public')->delete($iconPath);
             }
@@ -144,6 +153,14 @@ class CategoryController extends Controller
         } catch (\Exception $e) {
 
             DB::rollBack();
+
+            Log::error('Gagal mengubah kategori', [
+                'error_message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+                'icon_path' => $iconPath,
+                'user_id' => optional($request->user())->id
+            ]);
 
             if (
                 isset($iconPath) &&

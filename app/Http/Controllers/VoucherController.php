@@ -8,6 +8,7 @@ use App\Models\Cart;
 use App\Models\Voucher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class VoucherController extends Controller
@@ -134,6 +135,13 @@ class VoucherController extends Controller
 
             DB::rollBack();
 
+            Log::error('Gagal membuat voucher', [
+                'error_message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+                'user_id' => optional($request->user())->id
+            ]);
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Gagal membuat voucher.',
@@ -210,6 +218,13 @@ class VoucherController extends Controller
         } catch (\Exception $e) {
 
             DB::rollBack();
+
+            Log::error('Gagal mengubah voucher', [
+                'error_message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+                'user_id' => optional($request->user())->id
+            ]);
 
             return response()->json([
                 'status' => 'error',

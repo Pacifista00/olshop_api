@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -264,6 +265,13 @@ class ProductController extends Controller
 
             DB::rollBack();
 
+            Log::error('Gagal membuat produk', [
+                'error_message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+                'user_id' => optional($request->user())->id
+            ]);
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Gagal membuat produk.',
@@ -335,6 +343,13 @@ class ProductController extends Controller
         } catch (\Exception $e) {
 
             DB::rollBack();
+
+            Log::error('Gagal mengubah produk', [
+                'error_message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+                'user_id' => optional($request->user())->id
+            ]);
 
             return response()->json([
                 'status' => 'error',
