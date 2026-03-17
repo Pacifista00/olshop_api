@@ -166,7 +166,7 @@ class OrderService
 
             // berapa poin maksimal yang boleh dipakai berdasarkan total
             $maxPointCanUse = (int) floor(
-                max(0, $subtotal - $voucherDiscount + $shippingData['shipping_cost'])
+                max(0, $subtotal - $voucherDiscount)
                 / $pointValue
             );
 
@@ -185,10 +185,11 @@ class OrderService
              * FINAL TOTAL
              * =========================================
              */
-            $total = max(
-                0,
-                $subtotal - $voucherDiscount - $pointDiscount + $shippingData['shipping_cost']
-            );
+            // subtotal after voucher and point discount
+            $discountedSubtotal = max(0, $subtotal - $voucherDiscount - $pointDiscount);
+
+            // final total = subtotal after discount + shipping cost
+            $total = $discountedSubtotal + $shippingData['shipping_cost'];
 
             /**
              * =========================================
