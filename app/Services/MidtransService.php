@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Log;
 use Midtrans\Config;
 use Midtrans\Snap;
 
@@ -70,5 +71,29 @@ class MidtransService
     {
         self::init();
         return Snap::getSnapToken($params);
+    }
+    public static function refund($orderId, array $params = [])
+    {
+        self::init();
+
+        $payload = [
+            'refund_key' => 'refund-' . uniqid(),
+            'amount' => isset($params['amount'])
+                ? (int) round($params['amount'])
+                : null,
+            'reason' => $params['reason'] ?? 'Refund'
+        ];
+
+        try {
+            return \Midtrans\Transaction::refund($orderId, $payload);
+        } catch (\Exception $e) {
+            Log::error('Midtrans refund error', [
+                'order_id' => $orderId,
+                'payload' => $payload,
+                'error' => $e->getMessage()
+            ]);
+
+            throw $e;
+        }
     }
 }

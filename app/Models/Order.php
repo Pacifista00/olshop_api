@@ -40,6 +40,10 @@ class Order extends Model
     const PAYMENT_PAID = 'paid';
     const PAYMENT_FAILED = 'failed';
     const PAYMENT_EXPIRED = 'expired';
+    const PAYMENT_CANCELLED = 'cancelled';
+
+    const PAYMENT_REFUND_PENDING = 'refund_pending';
+    const PAYMENT_REFUNDED = 'refunded';
 
     use HasFactory, HasUuids, SoftDeletes;
 
@@ -78,6 +82,7 @@ class Order extends Model
         'shipment_created_at',
         'shipment_response',
         'expired_at',
+        'refunded_at',
     ];
     protected $casts = [
         'total_amount' => 'decimal:2',
@@ -87,6 +92,7 @@ class Order extends Model
         'midtrans_response' => 'array',
         'shipping_address_snapshot' => 'array',
         'expired_at' => 'datetime',
+        'refunded_at' => 'datetime',
         'shipment_response' => 'array',
     ];
 

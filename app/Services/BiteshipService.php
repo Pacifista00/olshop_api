@@ -143,4 +143,17 @@ class BiteshipService
 
         return $response->json();
     }
+    public function cancelOrder($biteshipOrderId)
+    {
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . config('services.biteship.key'),
+            'Content-Type' => 'application/json',
+        ])->post("https://api.biteship.com/v1/orders/{$biteshipOrderId}/cancel");
+
+        if (!$response->successful()) {
+            throw new \Exception('Biteship cancel failed');
+        }
+
+        return $response->json();
+    }
 }

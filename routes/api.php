@@ -106,6 +106,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::post('/checkout', [OrderController::class, 'checkout']);
     Route::post('/checkout/order/{order}', [OrderController::class, 'retry']);
+    Route::post('/order/{id}/cancel', [OrderController::class, 'cancel']);
 
     Route::get('/preview-shipping', [BiteshipController::class, 'previewShipping']);
 
