@@ -3,9 +3,6 @@
 namespace App\Jobs;
 
 use App\Models\Order;
-use App\Models\Product;
-use App\Models\UserPoint;
-use App\Models\PointHistory;
 use App\Services\MidtransService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -31,34 +28,53 @@ class ProcessRefundJob implements ShouldQueue
 
     public function handle(): void
     {
-        $order = Order::find($this->orderId);
+        DB::transaction(function () {
 
-        if (!$order)
-            return;
+            $order = Order::lockForUpdate()->find($this->orderId);
 
-        // ✅ idempotent
-        if ($order->payment_status !== Order::PAYMENT_REFUND_PENDING) {
-            return;
-        }
+            if (!$order)
+                return;
 
-        try {
+            // ✅ idempotent + extra safety
+            if (
+                $order->payment_status !== Order::PAYMENT_REFUND_PENDING ||
+                $order->refunded_at ||
+                $order->payment_status === Order::PAYMENT_REFUNDED
+            ) {
+                return;
+            }
 
-            Log::info('Refund job start', ['order_id' => $order->id]);
+            try {
 
-            MidtransService::refund($order->order_number, [
-                'amount' => $order->total_amount,
-                'reason' => 'Cancel by user'
-            ]);
+                Log::info('Refund job start', [
+                    'order_id' => $order->id
+                ]);
 
-        } catch (\Throwable $e) {
+                $response = MidtransService::refund($order->order_number, [
+                    'amount' => $order->total_amount,
+                    'reason' => 'Cancel by system'
+                ]);
 
-            Log::error('Refund job failed', [
-                'order_id' => $order->id,
-                'error' => $e->getMessage()
-            ]);
+                $order->update([
+                    'payment_status' => Order::PAYMENT_REFUNDED,
+                    'refunded_at' => now(),
+                    'refund_response' => $response ?? null,
+                ]);
 
-            throw $e; // biar retry
-        }
+                Log::info('Refund success', [
+                    'order_id' => $order->id
+                ]);
+
+            } catch (\Throwable $e) {
+
+                Log::error('Refund job failed', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage()
+                ]);
+
+                throw $e; // biar retry jalan
+            }
+        });
     }
 
     public function failed(\Throwable $e)

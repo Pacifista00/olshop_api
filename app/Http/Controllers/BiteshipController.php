@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessRefundJob;
 use App\Models\Address;
 use App\Models\Cart;
 use App\Models\Order;
@@ -9,6 +10,7 @@ use App\Services\BiteshipService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\RefundPaymentJob;
 
 class BiteshipController extends Controller
 {
@@ -126,17 +128,29 @@ class BiteshipController extends Controller
             return response()->json(['message' => 'Invalid payload'], 400);
         }
 
-        $order = Order::where('biteship_order_id', $orderId)->first();
+        DB::transaction(function () use ($orderId, $request, $payload, $status) {
 
-        if (!$order) {
-            return response()->json(['message' => 'Order not found'], 404);
-        }
+            $order = Order::where('biteship_order_id', $orderId)
+                ->lockForUpdate()
+                ->first();
 
-        if ($order->shipping_status === Order::SHIPPING_DELIVERED) {
-            return response()->json(['message' => 'Already delivered']);
-        }
+            if (!$order)
+                return;
 
-        DB::transaction(function () use ($order, $request, $payload, $status) {
+            // 🔒 jangan override final state
+            if (
+                in_array($order->status, [
+                    Order::STATUS_COMPLETED,
+                    Order::STATUS_CANCELLED
+                ])
+            ) {
+                return;
+            }
+
+            // 🔒 kalau sudah delivered, abaikan
+            if ($order->shipping_status === Order::SHIPPING_DELIVERED) {
+                return;
+            }
 
             $data = [
                 'tracking_number' => $request->input('courier_waybill_id'),
@@ -146,8 +160,8 @@ class BiteshipController extends Controller
                 'shipment_response' => $payload,
             ];
 
+            // mapping status normal
             $statusMap = [
-                'cancelled' => Order::STATUS_CANCELLED,
                 'delivered' => Order::STATUS_COMPLETED,
                 'returned' => Order::STATUS_RETURNED,
                 'disposed' => Order::STATUS_DISPOSED,
@@ -155,6 +169,20 @@ class BiteshipController extends Controller
 
             if (isset($statusMap[$status])) {
                 $data['status'] = $statusMap[$status];
+            }
+
+            // 🚨 HANDLE CANCEL + REFUND (CORE LOGIC)
+            if (in_array($status, ['courier_not_found', 'cancelled'])) {
+                $data['status'] = Order::STATUS_CANCELLED;
+
+                if (
+                    $order->payment_status === Order::PAYMENT_PAID &&
+                    !$order->refunded_at
+                ) {
+                    $data['payment_status'] = Order::PAYMENT_REFUND_PENDING;
+
+                    ProcessRefundJob::dispatch($order->id)->afterCommit();
+                }
             }
 
             $order->update($data);

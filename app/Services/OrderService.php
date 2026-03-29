@@ -331,9 +331,7 @@ class OrderService
     public static function retryPayment(Order $order, $user): string
     {
         /**
-         * =========================================================
-         * STEP 1 — LOCK & DECIDE (TRANSACTION CEPAT)
-         * =========================================================
+         * STEP 1 — LOCK & VALIDATE
          */
         $result = DB::transaction(function () use ($order, $user) {
 
@@ -341,55 +339,43 @@ class OrderService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            // 🔒 ownership check
             if ($order->user_id !== $user->id) {
                 throw new \Exception('Order tidak ditemukan');
             }
 
-            // 🔒 status check
-            if ($order->payment_status !== Order::PAYMENT_UNPAID) {
-                throw new \Exception('Order sudah dibayar');
+            if (
+                !in_array($order->payment_status, [
+                    Order::PAYMENT_UNPAID,
+                    Order::PAYMENT_PENDING,
+                ])
+            ) {
+                throw new \Exception('Order tidak bisa dibayar ulang');
             }
 
-            // 🔒 expired check
             if ($order->expired_at && now()->greaterThan($order->expired_at)) {
                 throw new \Exception('Order sudah expired');
             }
 
-            // ✅ idempotent — token sudah ada
-            if ($order->midtrans_snap_token) {
-                return [
-                    'need_create' => false,
-                    'token' => $order->midtrans_snap_token,
-                    'order_id' => $order->id,
-                ];
-            }
-
-            // ✅ perlu generate token baru
             return [
-                'need_create' => true,
-                'token' => null,
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
                 'gross_amount' => (int) $order->total_amount,
                 'customer_name' => $order->customer_name,
                 'customer_email' => $user->email,
+                'snap_token' => $order->midtrans_snap_token,
+                'payment_status' => $order->payment_status,
             ];
         });
 
-        /**
-         * =========================================================
-         * STEP 2 — JIKA TOKEN SUDAH ADA (FAST RETURN)
-         * =========================================================
-         */
-        if (!$result['need_create']) {
-            return $result['token'];
+        if (
+            $result['payment_status'] === Order::PAYMENT_PENDING &&
+            !empty($result['snap_token'])
+        ) {
+            return $result['snap_token'];
         }
 
         /**
-         * =========================================================
-         * STEP 3 — CALL MIDTRANS (DI LUAR TRANSACTION) ✅
-         * =========================================================
+         * STEP 2 — CALL MIDTRANS
          */
         try {
 
@@ -402,14 +388,18 @@ class OrderService
                     'first_name' => $result['customer_name'],
                     'email' => $result['customer_email'],
                 ],
+                'callbacks' => [
+                    'finish' => config('app.frontend_url') . '/after-payment',
+                ],
             ];
 
-            Log::info('MIDTRANS PAYLOAD', $payload);
-
-            $snapToken = MidtransService::createSnapToken($payload);
+            $snapToken = retry(3, function () use ($payload) {
+                return MidtransService::createSnapToken($payload);
+            }, 200);
 
         } catch (\Throwable $e) {
-            Log::error('Midtrans snap failed', [
+
+            Log::error('Midtrans retry failed', [
                 'order_id' => $result['order_id'],
                 'error' => $e->getMessage(),
             ]);
@@ -418,21 +408,13 @@ class OrderService
         }
 
         /**
-         * =========================================================
-         * STEP 4 — SAVE TOKEN (SAFE UPDATE)
-         * =========================================================
+         * STEP 3 — SAVE TOKEN (overwrite)
          */
         Order::where('id', $result['order_id'])
-            ->whereNull('midtrans_snap_token') // 🔥 anti race extra safety
             ->update([
                 'midtrans_snap_token' => $snapToken,
             ]);
 
-        /**
-         * =========================================================
-         * STEP 5 — RETURN TOKEN
-         * =========================================================
-         */
         return $snapToken;
     }
 
