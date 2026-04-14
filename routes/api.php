@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AddressController;
+use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\BiteshipController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserManagementController;
@@ -76,6 +77,8 @@ Route::post('/midtrans/callback', [MidtransController::class, 'handle']);
 Route::post('/biteship/webhook', [BiteshipController::class, 'handle']);
 Route::post('/biteship/webhook-waybill', [BiteshipController::class, 'handleWaybill']);
 Route::post('/biteship/webhook-price', [BiteshipController::class, 'handlePrice']);
+
+Route::get('/app-version', [AppSettingController::class, 'index']);
 
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
