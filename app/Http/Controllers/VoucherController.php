@@ -32,11 +32,12 @@ class VoucherController extends Controller
     }
     public function index()
     {
-        $vouchers = Voucher::where('visibility', 'public')
-            ->orderByDesc('created_at')
-            ->where('is_active', 1)
-            ->paginate(12);
+        $user = auth()->user();
 
+        $vouchers = Voucher::where('user_id', $user->id)
+            ->where('is_active', 1)
+            ->orderByDesc('created_at')
+            ->paginate(12);
 
         return response()->json([
             'status' => 'success',
@@ -153,7 +154,31 @@ class VoucherController extends Controller
     // GET /vouchers/{voucher}
     public function show(Voucher $voucher)
     {
+        $user = auth()->user();
+
+        // Cek aktif
         if (!$voucher->is_active) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Voucher not found.',
+            ], 404);
+        }
+
+        // Kalau voucher public → bebas akses
+        if ($voucher->visibility === 'public') {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Voucher retrieved successfully.',
+                'data' => new VoucherResource($voucher),
+            ], 200);
+        }
+
+        // Kalau hidden/private → cek apakah milik user
+        $isOwned = $voucher->redemptions()
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if (!$isOwned) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Voucher not found.',
@@ -269,11 +294,16 @@ class VoucherController extends Controller
         ]);
 
         // ===== Ambil voucher =====
-        $voucher = Voucher::where('code', $request->code)->first();
+        $voucher = Voucher::where('code', $request->code)
+            ->where(function ($q) {
+                $q->whereNull('user_id') // voucher public
+                    ->orWhere('user_id', auth()->id()); // voucher milik user
+            })
+            ->first();
 
         if (!$voucher) {
             return response()->json([
-                'message' => 'Voucher tidak ditemukan'
+                'message' => 'Voucher tidak valid atau tidak dapat digunakan'
             ], 422);
         }
 

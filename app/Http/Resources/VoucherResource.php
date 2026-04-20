@@ -30,6 +30,12 @@ class VoucherResource extends JsonResource
             'expires_at' => $this->expires_at,
             'is_active' => $this->is_active,
             'created_at' => $this->created_at,
+            'user' => $this->whenLoaded('user', function () {
+                return [
+                    'id' => $this->user?->id,
+                    'name' => $this->user?->name,
+                ];
+            }),
         ];
     }
 }

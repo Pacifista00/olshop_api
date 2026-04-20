@@ -4,6 +4,9 @@ use App\Http\Controllers\AddressController;
 use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\BiteshipController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RedeemController;
+use App\Http\Controllers\RewardController;
+use App\Http\Controllers\RewardRedemptionController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\CartController;
@@ -66,7 +69,6 @@ Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/home-products', [ProductController::class, 'homeProducts']);
-Route::get('/vouchers', [VoucherController::class, 'index']);
 Route::get('/product/{id}', [ProductController::class, 'getProduct']);
 Route::get('/category/{id}', [CategoryController::class, 'getCategory']);
 Route::get('/voucher/{id}', [VoucherController::class, 'getVoucher']);
@@ -104,6 +106,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::put('/cart/update/{cartItem}', [CartController::class, 'update']);
     Route::delete('/cart/delete/{cartItem}', [CartController::class, 'destroy']);
 
+    Route::get('/vouchers', [VoucherController::class, 'index']);
     Route::get('/voucher/show/{voucher}', [VoucherController::class, 'show']);
     Route::post('/voucher/preview', [VoucherController::class, 'preview']);
 
@@ -119,6 +122,14 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/orders/me', [OrderController::class, 'index']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::post('/orders/{order}/pack', [OrderController::class, 'pack']);
+
+    Route::get('/rewards', [RewardController::class, 'index']);
+    Route::get('/reward/{id}', [RewardController::class, 'show']);
+
+    Route::post('/rewards/{id}/redeem', [RedeemController::class, 'redeem']);
+    Route::get('/my-redemptions', [RewardRedemptionController::class, 'index']);
+    Route::get('/my-redemptions/{id}', [RewardRedemptionController::class, 'show']);
+
 
     Route::middleware(['auth:sanctum', 'role:admin,developer'])
         ->prefix('admin')
@@ -138,6 +149,18 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
             Route::post('/voucher/store', [VoucherController::class, 'store']);
             Route::put('/voucher/update/{voucher}', [VoucherController::class, 'update']);
             Route::delete('/voucher/delete/{voucher}', [VoucherController::class, 'destroy']);
+
+            Route::post('/reward/store', [RewardController::class, 'store']);
+            Route::put('/reward/update/{id}', [RewardController::class, 'update']);
+            Route::delete('/reward/delete/{id}', [RewardController::class, 'destroy']);
+
+            Route::get('/redemptions', [RewardRedemptionController::class, 'adminShow']);
+            Route::get('/redemptions/voucher', [RewardRedemptionController::class, 'adminVoucherReedem']);
+            Route::get('/redemptions/hotel', [RewardRedemptionController::class, 'adminHotelReedem']);
+            Route::get('/redemptions/product', [RewardRedemptionController::class, 'adminProductReedem']);
+
+            Route::post('/redemptions/product/{id}/complete', [RewardRedemptionController::class, 'updateProduct']);
+            Route::post('/redemptions/hotel/{id}/complete', [RewardRedemptionController::class, 'updateHotel']);
 
 
         });

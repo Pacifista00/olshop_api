@@ -38,11 +38,23 @@ class Voucher extends Model
 
         // Status
         'is_active',
+
+        'user_id'
     ];
 
 
     public function orders()
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function redemption()
+    {
+        return $this->hasOne(RewardRedemption::class);
     }
 }

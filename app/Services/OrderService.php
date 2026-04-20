@@ -119,10 +119,14 @@ class OrderService
 
                 $voucher = Voucher::lockForUpdate()
                     ->where('code', $voucherCode)
+                    ->where(function ($q) use ($user) {
+                        $q->whereNull('user_id') // voucher public
+                            ->orWhere('user_id', $user->id); // voucher milik user
+                    })
                     ->first();
 
                 if (!$voucher || !$voucher->is_active) {
-                    throw new \Exception('Voucher tidak valid');
+                    throw new \Exception('Voucher tidak valid atau tidak dapat digunakan');
                 }
 
                 if ($voucher->starts_at && now()->lt($voucher->starts_at)) {

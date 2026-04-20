@@ -84,4 +84,18 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserPoint::class, 'user_id');
     }
+    public function vouchers()
+    {
+        return $this->hasMany(Voucher::class);
+    }
+
+    public function redemptions()
+    {
+        return $this->hasMany(RewardRedemption::class);
+    }
+
+    public function hotelBookings()
+    {
+        return $this->hasMany(HotelBooking::class);
+    }
 }
