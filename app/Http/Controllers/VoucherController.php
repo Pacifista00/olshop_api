@@ -55,7 +55,7 @@ class VoucherController extends Controller
 
     public function getVoucher($id)
     {
-        $voucher = Voucher::where('visibility', 'public')->where('is_active', 1)->findOrFail($id);
+        $voucher = Voucher::where('is_active', 1)->findOrFail($id);
 
         return response()->json([
             'status' => 'success',

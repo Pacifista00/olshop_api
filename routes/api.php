@@ -75,6 +75,9 @@ Route::get('/voucher/{id}', [VoucherController::class, 'getVoucher']);
 Route::get('/products/latest', [ProductController::class, 'latest']);
 Route::get('/products/best-seller', [ProductController::class, 'bestSeller']);
 
+Route::get('/rewards', [RewardController::class, 'index']);
+Route::get('/reward/{id}', [RewardController::class, 'show']);
+
 Route::post('/midtrans/callback', [MidtransController::class, 'handle']);
 Route::post('/biteship/webhook', [BiteshipController::class, 'handle']);
 Route::post('/biteship/webhook-waybill', [BiteshipController::class, 'handleWaybill']);
@@ -123,8 +126,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::post('/orders/{order}/pack', [OrderController::class, 'pack']);
 
-    Route::get('/rewards', [RewardController::class, 'index']);
-    Route::get('/reward/{id}', [RewardController::class, 'show']);
+
 
     Route::post('/rewards/{id}/redeem', [RedeemController::class, 'redeem']);
     Route::get('/my-redemptions', [RewardRedemptionController::class, 'index']);
