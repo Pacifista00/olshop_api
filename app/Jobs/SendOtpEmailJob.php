@@ -8,6 +8,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class SendOtpEmailJob implements ShouldQueue
 {
@@ -112,5 +113,12 @@ Jika Anda tidak melakukan pendaftaran, abaikan email ini.
             'Kode OTP Registrasi',
             $html
         );
+    }
+    public function failed(\Throwable $exception)
+    {
+        Log::error('Gagal kirim OTP Email', [
+            'email' => $this->email,
+            'error' => $exception->getMessage(),
+        ]);
     }
 }

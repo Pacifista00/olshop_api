@@ -38,7 +38,7 @@ class AuthController extends Controller
                 'password' => Hash::make($validated['password']),
                 'gender' => $validated['gender'] ?? null,
                 'role' => 'customer',
-                'status' => 'active',
+                'status' => 'inactive',
             ]);
 
             if (!$user) {
@@ -46,12 +46,17 @@ class AuthController extends Controller
             }
 
             // 3. Generate OTP
-            $otp = rand(100000, 999999);
+            $otp = random_int(100000, 999999);
 
             // 4. Simpan OTP
+            Otp::where('user_id', $user->id)
+                ->where('type', 'register')
+                ->where('is_used', false)
+                ->delete();
+
             $otpRecord = Otp::create([
                 'user_id' => $user->id,
-                'otp_code' => $otp,
+                'otp_code' => Hash::make($otp),
                 'expired_at' => now()->addMinutes(5),
                 'is_used' => false,
                 'type' => 'register',
@@ -62,20 +67,11 @@ class AuthController extends Controller
             }
 
             // 5. Kirim email OTP
-            try {
-                SendOtpEmailJob::dispatch($user->email, $user->name, $otp);
-            } catch (\Exception $e) {
-                // rollback user & otp
-                DB::rollBack();
 
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Gagal mengirim email OTP.',
-                    'error' => $e->getMessage(), // debug
-                ], 500);
-            }
 
             DB::commit();
+
+            SendOtpEmailJob::dispatch($user->email, $user->name, $otp)->afterCommit();
 
             return response()->json([
                 'status' => 'success',
@@ -137,7 +133,7 @@ class AuthController extends Controller
         }
 
         // Cek OTP cocok
-        if ($otpData->otp_code !== $request->otp) {
+        if (!Hash::check($request->otp, $otpData->otp_code)) {
             return response()->json([
                 'success' => false,
                 'message' => 'OTP salah'
@@ -147,6 +143,7 @@ class AuthController extends Controller
         DB::transaction(function () use ($user, $otpData) {
             // Verifikasi user
             $user->update([
+                'status' => 'active',
                 'email_verified_at' => now()
             ]);
 
@@ -176,6 +173,18 @@ class AuthController extends Controller
             ], 409);
         }
 
+        $count = Otp::where('user_id', $user->id)
+            ->where('type', 'register') // penting!
+            ->whereDate('created_at', now())
+            ->count();
+
+        if ($count >= 5) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Batas OTP harian tercapai'
+            ], 429);
+        }
+
         $lastOtp = Otp::where('user_id', $user->id)
             ->latest()
             ->first();
@@ -192,7 +201,9 @@ class AuthController extends Controller
 
         try {
             // Hapus semua OTP lama user (lebih aman)
-            Otp::where('user_id', $user->id)->delete();
+            Otp::where('user_id', $user->id)
+                ->where('type', 'register')
+                ->delete();
 
             // Generate OTP baru
             $otpCode = random_int(100000, 999999);
@@ -200,22 +211,14 @@ class AuthController extends Controller
             Otp::create([
                 'id' => Str::uuid(),
                 'user_id' => $user->id,
-                'otp_code' => $otpCode,
+                'otp_code' => Hash::make($otpCode),
                 'expired_at' => now()->addMinutes(5),
                 'is_used' => false,
                 'type' => 'register'
             ]);
 
             DB::commit();
-
-            try {
-                SendOtpEmailJob::dispatch($user->email, $user->name, $otpCode);
-            } catch (\Exception $e) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Gagal mengirim OTP, coba lagi.'
-                ], 500);
-            }
+            SendOtpEmailJob::dispatch($user->email, $user->name, $otpCode)->afterCommit();
 
             return response()->json([
                 'success' => true,

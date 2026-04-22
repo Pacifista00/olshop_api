@@ -8,14 +8,14 @@ class BrevoService
 {
     public static function sendEmail($to, $name, $subject, $html)
     {
-        return Http::withHeaders([
+        $response = Http::timeout(10)->withHeaders([
             'accept' => 'application/json',
             'api-key' => config('services.brevo.key'),
             'content-type' => 'application/json',
         ])->post('https://api.brevo.com/v3/smtp/email', [
                     "sender" => [
-                        "name" => "WawaNet",
-                        "email" => "noreply@wawanet.co.id"
+                        "name" => config('services.brevo.name'),
+                        "email" => config('services.brevo.email'),
                     ],
                     "to" => [
                         [
@@ -26,6 +26,12 @@ class BrevoService
                     "subject" => $subject,
                     "htmlContent" => $html
                 ]);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal kirim email: ' . $response->body());
+        }
+
+        return $response->json();
 
     }
 

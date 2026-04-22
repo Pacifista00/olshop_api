@@ -50,6 +50,8 @@ return [
     ],
     'brevo' => [
         'key' => env('BREVO_API_KEY'),
+        'name' => env('BREVO_NAME'),
+        'email' => env('BREVO_EMAIL'),
     ],
 
 ];
