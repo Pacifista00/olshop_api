@@ -83,6 +83,7 @@ class Order extends Model
         'shipment_response',
         'expired_at',
         'refunded_at',
+        'product_discount',
     ];
     protected $casts = [
         'total_amount' => 'decimal:2',

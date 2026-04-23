@@ -25,7 +25,7 @@ class OrderService
     ): Order {
 
         return DB::transaction(function () use ($user, $shippingData, $voucherCode, $pointsUsed) {
-
+            $pointsUsed = 0;
             if (
                 empty($shippingData['address']) ||
                 !is_object($shippingData['address'])
@@ -49,24 +49,24 @@ class OrderService
                 throw new \Exception('Keranjang kosong');
             }
 
-            if ($pointsUsed < 0) {
-                throw new \Exception('Point tidak valid');
-            }
+            // if ($pointsUsed < 0) {
+            //     throw new \Exception('Point tidak valid');
+            // }
 
             /**
              * =========================================
              * POINT CHECK
              * =========================================
              */
-            $userPoint = UserPoint::lockForUpdate()
-                ->where('user_id', $user->id)
-                ->first();
+            // $userPoint = UserPoint::lockForUpdate()
+            //     ->where('user_id', $user->id)
+            //     ->first();
 
-            $availablePoints = $userPoint?->total_points ?? 0;
+            // $availablePoints = $userPoint?->total_points ?? 0;
 
-            if ($pointsUsed > $availablePoints) {
-                throw new \Exception('Point tidak mencukupi');
-            }
+            // if ($pointsUsed > $availablePoints) {
+            //     throw new \Exception('Point tidak mencukupi');
+            // }
 
             /**
              * =========================================
@@ -156,6 +156,7 @@ class OrderService
                 $voucherDiscount = min($voucherDiscount, $subtotal);
             }
 
+
             /**
              * =========================================
              * POINT CALCULATION
@@ -166,23 +167,22 @@ class OrderService
              * POINT CALCULATION (FIXED)
              * =========================================
              */
-            $pointValue = 5000;
+            // $pointValue = 5000;
 
-            // berapa poin maksimal yang boleh dipakai berdasarkan total
-            $maxPointCanUse = (int) floor(
-                max(0, $subtotal - $voucherDiscount)
-                / $pointValue
-            );
+            // $maxPointCanUse = (int) floor(
+            //     max(0, $subtotal - $voucherDiscount)
+            //     / $pointValue
+            // );
 
-            // clamp request user
-            $actualPointsUsed = min($pointsUsed, $maxPointCanUse);
+            // $actualPointsUsed = min($pointsUsed, $maxPointCanUse);
 
-            // hitung diskon FINAL dari poin yang benar-benar dipakai
-            $pointDiscount = $actualPointsUsed * $pointValue;
+            // $pointDiscount = $actualPointsUsed * $pointValue;
 
-            if ($pointsUsed > 0 && $actualPointsUsed === 0) {
-                throw new \Exception('Point tidak mencukupi untuk digunakan');
-            }
+            // if ($pointsUsed > 0 && $actualPointsUsed === 0) {
+            //     throw new \Exception('Point tidak mencukupi untuk digunakan');
+            // }
+            $actualPointsUsed = 0;
+            $pointDiscount = 0;
 
             /**
              * =========================================
@@ -190,7 +190,14 @@ class OrderService
              * =========================================
              */
             // subtotal after voucher and point discount
-            $discountedSubtotal = max(0, $subtotal - $voucherDiscount - $pointDiscount);
+            $productDiscount = (int) floor(
+                ($subtotal - $voucherDiscount) * 0.025
+            );
+
+            $discountedSubtotal = max(
+                0,
+                $subtotal - $voucherDiscount - $productDiscount
+            );
 
             // final total = subtotal after discount + shipping cost
             $total = $discountedSubtotal + $shippingData['shipping_cost'];
@@ -217,6 +224,7 @@ class OrderService
                 'voucher_id' => $voucher?->id,
                 'voucher_discount' => $voucherDiscount,
                 'voucher_usage_counted' => false,
+                'product_discount' => $productDiscount,
 
                 'shipping_cost' => $shippingData['shipping_cost'],
                 'total_amount' => $total,
