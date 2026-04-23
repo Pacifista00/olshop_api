@@ -19,7 +19,8 @@ class BiteshipService
     // DIGUNAKAN SAAT SIMPAN ALAMAT
     public static function findLocation(
         string $city,
-        string $province
+        string $province,
+        string $postalCode
     ): ?array {
 
         $keyword = trim($city);
@@ -28,7 +29,7 @@ class BiteshipService
             'https://api.biteship.com/v1/maps/areas',
             [
                 'countries' => 'ID',
-                'input' => $keyword,
+                'input' => $keyword . '+' . $postalCode,
                 'type' => 'single',
             ]
         );

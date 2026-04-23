@@ -5,6 +5,7 @@ use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\BiteshipController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RedeemController;
+use App\Http\Controllers\RegionController;
 use App\Http\Controllers\RewardController;
 use App\Http\Controllers\RewardRedemptionController;
 use App\Http\Controllers\UserManagementController;
@@ -84,6 +85,9 @@ Route::post('/biteship/webhook-waybill', [BiteshipController::class, 'handleWayb
 Route::post('/biteship/webhook-price', [BiteshipController::class, 'handlePrice']);
 
 Route::get('/app-version', [AppSettingController::class, 'index']);
+
+Route::get('/regions/provinces', [RegionController::class, 'provinces']);
+Route::get('/regions/cities/{provinceId}', [RegionController::class, 'cities']);
 
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {

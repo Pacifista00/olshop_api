@@ -57,7 +57,8 @@ class AddressController extends Controller
             // 2️⃣ Resolve location ke BITESHIP (SEKALI SAJA)
             $location = BiteshipService::findLocation(
                 $validated['city'],
-                $validated['province']
+                $validated['province'],
+                $validated['postal_code']
             );
 
             if (!$location) {
