@@ -109,6 +109,15 @@ class OrderService
 
             /**
              * =========================================
+             * AUTO DISCOUNT (2.5%) - HARUS DULUAN
+             * =========================================
+             */
+            $productDiscount = (int) floor($subtotal * 0.025);
+
+            $afterAutoDiscount = $subtotal - $productDiscount;
+
+            /**
+             * =========================================
              * VOUCHER VALIDATION
              * =========================================
              */
@@ -137,7 +146,7 @@ class OrderService
                     throw new \Exception('Voucher sudah kadaluarsa');
                 }
 
-                if ($voucher->min_order_amount && $subtotal < $voucher->min_order_amount) {
+                if ($voucher->min_order_amount && $afterAutoDiscount < $voucher->min_order_amount) {
                     throw new \Exception('Minimal order tidak memenuhi syarat voucher');
                 }
 
@@ -146,14 +155,14 @@ class OrderService
                 }
 
                 $voucherDiscount = $voucher->type === 'percentage'
-                    ? (int) floor($subtotal * ($voucher->value / 100))
+                    ? (int) floor($afterAutoDiscount * ($voucher->value / 100))
                     : (int) $voucher->value;
 
                 if ($voucher->max_discount) {
                     $voucherDiscount = min($voucherDiscount, $voucher->max_discount);
                 }
 
-                $voucherDiscount = min($voucherDiscount, $subtotal);
+                $voucherDiscount = min($voucherDiscount, $afterAutoDiscount);
             }
 
 
@@ -184,23 +193,23 @@ class OrderService
             $actualPointsUsed = 0;
             $pointDiscount = 0;
 
+
+
+            /**
+             * =========================================
+             * APPLY VOUCHER SETELAH AUTO DISCOUNT
+             * =========================================
+             */
+            $voucherDiscount = min($voucherDiscount, $afterAutoDiscount);
+
+            $afterVoucher = max(0, $afterAutoDiscount - $voucherDiscount);
+
             /**
              * =========================================
              * FINAL TOTAL
              * =========================================
              */
-            // subtotal after voucher and point discount
-            $productDiscount = (int) floor(
-                ($subtotal - $voucherDiscount) * 0.025
-            );
-
-            $discountedSubtotal = max(
-                0,
-                $subtotal - $voucherDiscount - $productDiscount
-            );
-
-            // final total = subtotal after discount + shipping cost
-            $total = $discountedSubtotal + $shippingData['shipping_cost'];
+            $total = $afterVoucher + $shippingData['shipping_cost'];
 
             /**
              * =========================================

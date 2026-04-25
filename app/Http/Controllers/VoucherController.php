@@ -296,8 +296,8 @@ class VoucherController extends Controller
         // ===== Ambil voucher =====
         $voucher = Voucher::where('code', $request->code)
             ->where(function ($q) {
-                $q->whereNull('user_id') // voucher public
-                    ->orWhere('user_id', auth()->id()); // voucher milik user
+                $q->whereNull('user_id')
+                    ->orWhere('user_id', auth()->id());
             })
             ->first();
 
@@ -307,7 +307,7 @@ class VoucherController extends Controller
             ], 422);
         }
 
-        // ===== Ambil cart user =====
+        // ===== Ambil cart =====
         $cart = Cart::where('user_id', auth()->id())
             ->with('items.product')
             ->first();
@@ -320,11 +320,10 @@ class VoucherController extends Controller
 
         // ===== Hitung subtotal =====
         $subtotal = $cart->items->sum(
-            fn($item) =>
-            $item->product->price * $item->quantity
+            fn($item) => $item->product->price * $item->quantity
         );
 
-        // ===== Validasi voucher =====
+        // ===== Validasi dasar voucher =====
         if (!$voucher->is_active) {
             return response()->json([
                 'message' => 'Voucher tidak aktif'
@@ -343,36 +342,66 @@ class VoucherController extends Controller
             ], 422);
         }
 
-        if ($voucher->min_order_amount && $subtotal < $voucher->min_order_amount) {
-            return response()->json([
-                'message' => 'Minimal belanja Rp ' .
-                    number_format($voucher->min_order_amount, 0, ',', '.')
-            ], 422);
-        }
-
         if ($voucher->usage_limit && $voucher->usage_count >= $voucher->usage_limit) {
             return response()->json([
                 'message' => 'Kuota voucher sudah habis'
             ], 422);
         }
 
-        // ===== Hitung diskon =====
-        if ($voucher->type === 'percentage') {
-            $discount = $subtotal * ($voucher->value / 100);
-        } else {
-            $discount = $voucher->value;
+        /**
+         * =========================================
+         * AUTO DISCOUNT (HARUS DULUAN)
+         * =========================================
+         */
+        $productDiscount = (int) floor($subtotal * 0.025);
+        $afterAutoDiscount = $subtotal - $productDiscount;
+
+        /**
+         * =========================================
+         * VALIDASI MIN ORDER (PAKAI AFTER DISCOUNT)
+         * =========================================
+         */
+        if (
+            $voucher->min_order_amount &&
+            $afterAutoDiscount < $voucher->min_order_amount
+        ) {
+            return response()->json([
+                'message' => 'Minimal belanja Rp ' .
+                    number_format($voucher->min_order_amount, 0, ',', '.')
+            ], 422);
         }
 
+        /**
+         * =========================================
+         * HITUNG DISKON (PAKAI AFTER DISCOUNT)
+         * =========================================
+         */
+        if ($voucher->type === 'percentage') {
+            $discount = (int) floor(
+                $afterAutoDiscount * ($voucher->value / 100)
+            );
+        } else {
+            $discount = (int) $voucher->value;
+        }
+
+        // max discount
         if ($voucher->max_discount) {
             $discount = min($discount, $voucher->max_discount);
         }
 
-        // ===== Response =====
+        // tidak boleh lebih besar dari subtotal setelah auto discount
+        $discount = min($discount, $afterAutoDiscount);
+
+        /**
+         * =========================================
+         * RESPONSE
+         * =========================================
+         */
         return response()->json([
             'voucher' => [
                 'code' => $voucher->code,
                 'name' => $voucher->name,
-                'type' => $voucher->type, // percentage | fixed
+                'type' => $voucher->type,
                 'value' => (int) $voucher->value,
                 'max_discount' => $voucher->max_discount
                     ? (int) $voucher->max_discount
@@ -381,7 +410,7 @@ class VoucherController extends Controller
                     ? (int) $voucher->min_order_amount
                     : null,
             ],
-            'discount' => (int) $discount,
+            'discount' => $discount,
         ]);
     }
 }
