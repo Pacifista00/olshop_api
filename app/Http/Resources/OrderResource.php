@@ -43,6 +43,8 @@ class OrderResource extends JsonResource
             'voucher_discount' => (int) $this->voucher_discount,
             'total_amount' => (int) $this->total_amount,
 
+            'shipping_address' => $this->shipping_address_snapshot,
+
             'courier' => [
                 'code' => $this->courier,
                 'service' => $this->courier_service,
