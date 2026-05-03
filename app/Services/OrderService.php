@@ -254,6 +254,7 @@ class OrderService
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $product->id,
+                    'product_name' => $product->name,
                     'quantity' => $cartItem->quantity,
                     'unit_price' => $product->price,
                     'subtotal' => $product->price * $cartItem->quantity,

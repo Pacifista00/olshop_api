@@ -16,6 +16,7 @@ use App\Jobs\CancelBiteshipOrderJob;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
@@ -188,22 +189,126 @@ class OrderController extends Controller
              * 3️⃣ CREATE SNAP TOKEN (RETRY SAFE)
              * =========================================
              */
-            $snapToken = retry(3, function () use ($order, $user) {
+            /**
+             * =========================================
+             * 3️⃣ CREATE SNAP TOKEN (RETRY SAFE)
+             * =========================================
+             */
+            /**
+             * =========================================
+             * 3️⃣ CREATE SNAP TOKEN (RETRY SAFE)
+             * =========================================
+             */
+            $snapToken = retry(3, function ($attempt) use ($order, $user) {
+                try {
+                    /** 
+                     * 1. Mapping Item Details 
+                     * Midtrans mewajibkan (price * quantity) + (biaya lain) - (diskon) == gross_amount
+                     */
+                    $items = $order->items->map(function ($item) {
+                        return [
+                            'id' => 'PROD-' . $item->product_id,
+                            'price' => (int) $item->unit_price,
+                            'quantity' => $item->quantity,
+                            'name' => Str::limit($item->product->name, 45),
+                        ];
+                    })->toArray();
 
-                return MidtransService::createSnapToken([
-                    'transaction_details' => [
-                        'order_id' => $order->order_number,
-                        'gross_amount' => (int) $order->total_amount
-                    ],
-                    'callbacks' => [
-                        'finish' => config('app.frontend_url') . '/after-payment',
-                    ],
-                    'customer_details' => [
-                        'first_name' => $user->name,
-                        'email' => $user->email
-                    ],
-                ]);
+                    // 2. Tambahkan Ongkir ke rincian
+                    $items[] = [
+                        'id' => 'SHIPPING_FEE',
+                        'price' => (int) $order->shipping_cost,
+                        'quantity' => 1,
+                        'name' => 'Ongkos Kirim',
+                    ];
 
+                    // 3. Tambahkan Auto Discount 2.5% (Jika ada)
+                    if ($order->product_discount > 0) {
+                        $items[] = [
+                            'id' => 'AUTO_DISCOUNT',
+                            'price' => (int) ($order->product_discount * -1), // Minus untuk memotong total
+                            'quantity' => 1,
+                            'name' => 'Promo Produk 2.5%',
+                        ];
+                    }
+
+                    // 4. Tambahkan Voucher Discount (Jika ada)
+                    if ($order->voucher_discount > 0) {
+                        $items[] = [
+                            'id' => 'VOUCHER_DISCOUNT',
+                            'price' => (int) ($order->voucher_discount * -1),
+                            'quantity' => 1,
+                            'name' => 'Voucher Diskon',
+                        ];
+                    }
+
+                    // 5. Tambahkan Point Discount (Jika ada)
+                    if ($order->points_discount > 0) {
+                        $items[] = [
+                            'id' => 'POINT_DISCOUNT',
+                            'price' => (int) ($order->points_discount * -1),
+                            'quantity' => 1,
+                            'name' => 'Potongan Poin',
+                        ];
+                    }
+
+                    /**
+                     * 6. Susun Alamat Lengkap untuk Dashboard Midtrans
+                     * Mengambil data dari snapshot alamat saat checkout
+                     */
+                    $addressSnapshot = $order->shipping_address_snapshot;
+                    $fullAddress = sprintf(
+                        "%s, %s, %s, %s, %s",
+                        $addressSnapshot['address'] ?? '',
+                        $addressSnapshot['district'] ?? '',
+                        $addressSnapshot['city'] ?? '',
+                        $addressSnapshot['province'] ?? '',
+                        $addressSnapshot['postal_code'] ?? ''
+                    );
+
+                    // 7. Request ke Midtrans
+                    return MidtransService::createSnapToken([
+                        'transaction_details' => [
+                            'order_id' => $order->order_number,
+                            'gross_amount' => (int) $order->total_amount
+                        ],
+                        'item_details' => $items,
+                        'customer_details' => [
+                            'first_name' => $order->customer_name,
+                            'email' => $user->email,
+                            'phone' => $order->customer_phone,
+                            'shipping_address' => [
+                                'first_name' => $order->customer_name,
+                                'email' => $user->email,
+                                'phone' => $order->customer_phone,
+                                'address' => $fullAddress,
+                                'city' => $addressSnapshot['city'] ?? '',
+                                'postal_code' => $addressSnapshot['postal_code'] ?? '',
+                                'country_code' => 'IDN',
+                            ],
+                            'billing_address' => [
+                                'first_name' => $order->customer_name,
+                                'phone' => $order->customer_phone,
+                                'address' => $fullAddress,
+                                'city' => $addressSnapshot['city'] ?? '',
+                                'postal_code' => $addressSnapshot['postal_code'] ?? '',
+                                'country_code' => 'IDN',
+                            ],
+                        ],
+                        'callbacks' => [
+                            'finish' => config('app.frontend_url') . '/after-payment',
+                        ],
+                    ]);
+
+                } catch (\Throwable $e) {
+                    // Log setiap kegagalan percobaan
+                    Log::warning("Midtrans Snap Token Attempt {$attempt} Failed", [
+                        'order_id' => $order->id,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    throw $e; // Dilempar agar retry() mencoba lagi
+                }
             }, 200);
 
             /**

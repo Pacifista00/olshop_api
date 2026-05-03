@@ -18,6 +18,7 @@ class OrderItem extends Model
         'product_id',
         'quantity',
         'unit_price',
+        'product_name'
     ];
     public function product()
     {
